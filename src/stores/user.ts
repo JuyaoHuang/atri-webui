@@ -14,7 +14,7 @@ export interface UserState {
 // ============================================
 const DEFAULT_SETTINGS: UserSettings = {
   nickname: 'juyao',           // 修改这里设置你的昵称
-  avatar: 'default-user.jpg' // 修改这里设置你的头像文件名（需放在 public/avatars/ 目录下）
+  avatar: '1.jpg' // 修改这里设置你的头像文件名（需放在 public/avatars/ 目录下）
 }
 // ============================================
 
