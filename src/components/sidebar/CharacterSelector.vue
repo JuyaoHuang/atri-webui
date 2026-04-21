@@ -30,8 +30,14 @@ const handleSelectCharacter = (characterId: string) => {
         }"
         @click="handleSelectCharacter(character.id)"
       >
-        <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-          <span class="text-lg">{{ character.name[0] }}</span>
+        <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+          <img
+            v-if="character.avatar"
+            :src="`/avatars/${character.avatar}`"
+            :alt="character.name"
+            class="w-full h-full object-cover"
+          />
+          <span v-else class="text-lg">{{ character.name[0] }}</span>
         </div>
         <div class="flex-1">
           <div class="text-sm font-medium text-white">{{ character.name }}</div>

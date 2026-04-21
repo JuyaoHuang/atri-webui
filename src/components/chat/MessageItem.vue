@@ -15,12 +15,28 @@ const formatTime = (timestamp: string) => {
 
 <template>
   <div class="message-item" :class="message.role === 'human' ? 'human-message' : 'ai-message'">
+    <div v-if="message.role === 'ai'" class="message-avatar">
+      <img
+        v-if="message.avatar"
+        :src="`/avatars/${message.avatar}`"
+        :alt="message.name || 'AI'"
+        class="w-8 h-8 rounded-full object-cover"
+      />
+      <div v-else class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">
+        AI
+      </div>
+    </div>
     <div class="message-content">
       <div class="message-header">
-        <span class="message-role">{{ message.role === 'human' ? '你' : 'AI' }}</span>
+        <span class="message-role">{{ message.role === 'human' ? '你' : (message.name || 'AI') }}</span>
         <span class="message-time">{{ formatTime(message.timestamp) }}</span>
       </div>
       <div class="message-text">{{ message.content }}</div>
+    </div>
+    <div v-if="message.role === 'human'" class="message-avatar">
+      <div class="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-sm">
+        你
+      </div>
     </div>
   </div>
 </template>
@@ -28,31 +44,41 @@ const formatTime = (timestamp: string) => {
 <style scoped>
 .message-item {
   display: flex;
+  gap: 12px;
   margin-bottom: 16px;
+  align-items: flex-start;
 }
 
-.human-message {
-  justify-content: flex-end;
-}
-
-.human-message .message-content {
-  background: rgba(34, 197, 94, 0.1);
-}
-
-.human-message .message-role {
-  color: #4ade80;
-}
-
-.ai-message {
+/* AI 消息：头像在左，内容在右 */
+.message-item.ai-message {
+  flex-direction: row;
   justify-content: flex-start;
 }
 
-.ai-message .message-content {
+.message-item.ai-message .message-content {
   background: rgba(59, 130, 246, 0.1);
 }
 
-.ai-message .message-role {
+.message-item.ai-message .message-role {
   color: #60a5fa;
+}
+
+/* 用户消息：头像在右，内容在左 */
+.message-item.human-message {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.message-item.human-message .message-content {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.message-item.human-message .message-role {
+  color: #4ade80;
+}
+
+.message-avatar {
+  flex-shrink: 0;
 }
 
 .message-content {

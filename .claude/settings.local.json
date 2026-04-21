@@ -8,7 +8,8 @@
       "Edit",
       "Bash(git:*)",
       "Bash(npm run *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(uv run *)"
     ]
   }
 }
