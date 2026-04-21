@@ -32,14 +32,16 @@ export const useChatStore = defineStore('chat', {
       this.streamingText += chunk
     },
 
-    completeStreaming(fullReply: string) {
+    completeStreaming(fullReply: string, name?: string, avatar?: string) {
       if (this.currentChatId && this.currentCharacterId) {
         this.messages.push({
           id: `msg_${Date.now()}`,
           chat_id: this.currentChatId,
           role: 'ai',
           content: fullReply,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          name,
+          avatar
         })
       }
       this.streamingText = ''

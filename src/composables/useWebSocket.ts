@@ -1,11 +1,13 @@
 import { computed } from 'vue'
 import { useWebSocketStore } from '@/stores/websocket'
 import { useChatStore } from '@/stores/chat'
+import { useCharactersStore } from '@/stores/characters'
 import { WebSocketManager } from '@/utils/websocket'
 
 export function useWebSocket() {
   const wsStore = useWebSocketStore()
   const chatStore = useChatStore()
+  const charactersStore = useCharactersStore()
 
   const connect = () => {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8430/ws'
@@ -34,8 +36,20 @@ export function useWebSocket() {
     })
 
     wsManager.on('chat:complete', (data: unknown) => {
-      const completeData = data as { full_reply?: string }
-      chatStore.completeStreaming(completeData.full_reply || '')
+      const completeData = data as { full_reply?: string; character_id?: string }
+
+      // 获取角色信息
+      let characterName: string | undefined
+      let characterAvatar: string | undefined
+      if (completeData.character_id) {
+        const character = charactersStore.characters.find((c) => c.id === completeData.character_id)
+        if (character) {
+          characterName = character.name
+          characterAvatar = character.avatar
+        }
+      }
+
+      chatStore.completeStreaming(completeData.full_reply || '', characterName, characterAvatar)
     })
 
     wsManager.on('chat:error', (data: unknown) => {
