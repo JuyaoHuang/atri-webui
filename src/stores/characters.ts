@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Character } from '@/types/character'
+import { charactersApi } from '@/api/characters'
 
 export interface CharactersState {
   characters: Character[]
@@ -16,10 +17,22 @@ export const useCharactersStore = defineStore('characters', {
 
   actions: {
     async fetchCharacters() {
-      // Will be implemented in US-FE-004
       this.loading = true
       try {
-        // Placeholder - will call charactersApi.getList()
+        const response = await charactersApi.getList()
+        this.characters = response.map((char) => ({
+          id: char.character_id,
+          name: char.name,
+          avatar: char.avatar || undefined,
+          greeting: char.greeting || undefined
+        }))
+
+        // 自动选择第一个角色
+        if (this.characters.length > 0 && !this.activeCharacterId) {
+          this.activeCharacterId = this.characters[0].id
+        }
+      } catch (error) {
+        console.error('获取角色列表失败:', error)
         this.characters = []
       } finally {
         this.loading = false

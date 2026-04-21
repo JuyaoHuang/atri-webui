@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Sidebar container - will contain CharacterSelector and ChatHistory in US-FE-004
+import CharacterSelector from './CharacterSelector.vue'
+import ChatHistory from './ChatHistory.vue'
 </script>
 
 <template>
@@ -8,14 +9,14 @@
       <h2 class="text-xl font-bold text-white">Atri</h2>
     </div>
 
-    <!-- Character selector placeholder -->
+    <!-- Character selector -->
     <div class="p-4 border-b border-gray-700">
-      <p class="text-gray-400 text-sm">角色选择器 (US-FE-004)</p>
+      <CharacterSelector />
     </div>
 
-    <!-- Chat history placeholder -->
-    <div class="flex-1 overflow-y-auto p-4">
-      <p class="text-gray-400 text-sm">聊天历史 (US-FE-004)</p>
+    <!-- Chat history -->
+    <div class="flex-1 overflow-hidden p-4">
+      <ChatHistory />
     </div>
   </div>
 </template>
