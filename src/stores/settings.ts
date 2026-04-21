@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { BackgroundConfig } from '@/types/settings'
+import { storage } from '@/utils/storage'
 
 export interface SettingsState {
   background: BackgroundConfig
@@ -16,13 +17,14 @@ export const useSettingsStore = defineStore('settings', {
 
   actions: {
     loadSettings() {
-      // Will be implemented in US-FE-006
-      // Load from LocalStorage
+      const savedBackground = storage.background.get()
+      if (savedBackground) {
+        this.background = savedBackground
+      }
     },
 
     saveSettings() {
-      // Will be implemented in US-FE-006
-      // Save to LocalStorage
+      storage.background.set(this.background)
     },
 
     updateBackground(config: Partial<BackgroundConfig>) {

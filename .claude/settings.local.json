@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__fetch__fetch",
+      "Bash(npm install *)",
+      "Bash(npm list *)",
+      "Write",
+      "Edit",
+      "Bash(git:*)",
+      "Bash(npm run *)",
+      "Bash(python3 *)"
+    ]
+  }
+}
