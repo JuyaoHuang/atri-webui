@@ -30,7 +30,7 @@ watch(
 <template>
   <div class="chat-area flex-1 flex flex-col">
     <!-- Header -->
-    <div class="h-16 bg-gray-800 bg-opacity-80 flex items-center justify-between px-6 border-b border-gray-700">
+    <div class="chat-header h-16 flex items-center justify-between px-6 border-b border-gray-700/50">
       <h3 class="text-lg font-semibold text-white">对话区域</h3>
       <div class="flex items-center gap-2">
         <div
@@ -53,6 +53,12 @@ watch(
 
 <style scoped>
 .chat-area {
-  backdrop-filter: blur(10px);
+  background: transparent;
+}
+
+.chat-header {
+  background: rgba(31, 41, 55, 0.5);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 </style>

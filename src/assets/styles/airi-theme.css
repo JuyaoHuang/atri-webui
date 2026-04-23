@@ -1,0 +1,54 @@
+/* AIRI Design System - CSS Variables */
+:root {
+  /* Chromatic color system */
+  --chromatic-hue: 220.44;
+  --chromatic-chroma: calc(0.18 + (cos(var(--chromatic-hue) * 3.14159265 / 180) * 0.04));
+  --chromatic-chroma-50: calc(var(--chromatic-chroma) * 0.3);
+  --chromatic-chroma-100: calc(var(--chromatic-chroma) * 0.5);
+  --chromatic-chroma-200: calc(var(--chromatic-chroma) * 0.6);
+  --chromatic-chroma-300: calc(var(--chromatic-chroma) * 0.75);
+  --chromatic-chroma-400: calc(var(--chromatic-chroma) * 0.85);
+  --chromatic-chroma-500: var(--chromatic-chroma);
+  --chromatic-chroma-600: calc(var(--chromatic-chroma) * 1.15);
+  --chromatic-chroma-700: calc(var(--chromatic-chroma) * 1.1);
+  --chromatic-chroma-800: calc(var(--chromatic-chroma) * 0.85);
+  --chromatic-chroma-900: calc(var(--chromatic-chroma) * 0.7);
+  --chromatic-chroma-950: calc(var(--chromatic-chroma) * 0.5);
+
+  /* Background colors */
+  --bg-color-light: rgb(255 255 255);
+  --bg-color-dark: rgb(18 18 18);
+  --bg-color: var(--bg-color-light);
+}
+
+/* Disable transitions during interaction */
+.is-interacting {
+  transition-property: none !important;
+}
+
+/* Dark mode */
+html.dark {
+  --bg-color: var(--bg-color-dark);
+  color-scheme: dark;
+}
+
+/* Smooth transitions */
+html {
+  background: var(--bg-color);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Disable double-tap zoom on touch devices */
+* {
+  touch-action: manipulation;
+}
+
+/* Full height layout */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
