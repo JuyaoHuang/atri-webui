@@ -1,209 +1,73 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+
+const title = computed(() => (route.meta.title as string | undefined) || '开发中')
+const description = computed(() => (route.meta.description as string | undefined) || '该设置页仍在建设中。')
+const phase = computed(() => route.meta.phase as string | undefined)
+const icon = computed(() => (route.meta.icon as string | undefined) || 'i-solar:settings-bold-duotone')
 </script>
 
 <template>
-  <div class="placeholder-page">
-    <div class="placeholder-content">
-      <div class="icon-wrapper">
-        <div class="icon">🚧</div>
-        <div class="icon-glow"></div>
+  <div flex="~ col gap-4" font-normal>
+    <div
+      rounded-2xl
+      border="amber-200/70 dark:amber-400/20"
+      bg="amber-50/80 dark:amber-500/10"
+      p-5 md:p-6
+      backdrop-blur-sm
+    >
+      <div flex="~ row items-start gap-4">
+        <div
+          size-12
+          flex items-center justify-center
+          rounded-xl
+          bg="amber-100/80 dark:amber-400/10"
+          text="amber-600 dark:amber-300"
+        >
+          <div i-solar:settings-bold-duotone text-2xl />
+        </div>
+
+        <div flex-1>
+          <h2 text-lg font-medium>
+            {{ title }}
+          </h2>
+
+          <p mt-2 text="sm neutral-600 dark:neutral-300/80">
+            {{ description }}
+          </p>
+
+          <p mt-3 text="sm neutral-500 dark:neutral-400">
+            当前已经切换到 AIRI 风格的设置页壳层，这个功能页的业务表单会在后续阶段补齐。
+          </p>
+
+          <div
+            v-if="phase"
+            mt-4 inline-flex items-center rounded-full
+            bg="neutral-900/5 dark:neutral-100/10"
+            px-3 py-1.5
+            text="xs neutral-600 dark:neutral-300"
+          >
+            {{ phase }}
+          </div>
+        </div>
       </div>
-      <h2 class="title">{{ route.meta.title }}</h2>
-      <p class="status">此功能正在开发中，敬请期待</p>
-      <div class="phase-badge">
-        <span class="phase-text">{{ route.meta.phase }}</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill"></div>
-      </div>
+    </div>
+
+    <div
+      v-motion
+      pointer-events-none
+      fixed bottom-0 right--8 top="[calc(100dvh-14rem)]" z--1
+      size-60
+      flex items-center justify-center
+      text="neutral-200/50 dark:neutral-600/20"
+      :initial="{ scale: 0.9, opacity: 0, y: 20 }"
+      :enter="{ scale: 1, opacity: 1, y: 0 }"
+      :duration="500"
+    >
+      <div text="60" :class="icon" />
     </div>
   </div>
 </template>
-
-<style scoped>
-.placeholder-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 500px;
-  padding: 3rem;
-  background: transparent;
-}
-
-.placeholder-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 480px;
-  text-align: center;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.icon-wrapper {
-  position: relative;
-  margin-bottom: 2rem;
-}
-
-.icon {
-  font-size: 5rem;
-  animation: float 3s ease-in-out infinite;
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.icon-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(170, 59, 255, 0.2) 0%, transparent 70%);
-  filter: blur(20px);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-}
-
-.title {
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: rgba(0, 0, 0, 0.85);
-  letter-spacing: -0.02em;
-}
-
-.status {
-  font-size: 1.125rem;
-  color: rgba(0, 0, 0, 0.5);
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
-}
-
-.phase-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.625rem 1.25rem;
-  background: linear-gradient(135deg, rgba(170, 59, 255, 0.12) 0%, rgba(192, 132, 252, 0.12) 100%);
-  border: 1px solid rgba(170, 59, 255, 0.3);
-  border-radius: 24px;
-  margin-bottom: 2rem;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(170, 59, 255, 0.15);
-}
-
-.phase-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgb(170, 59, 255);
-  letter-spacing: 0.02em;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-}
-
-.progress-fill {
-  height: 100%;
-  width: 30%;
-  background: linear-gradient(90deg, rgba(170, 59, 255, 0.8) 0%, rgba(192, 132, 252, 0.8) 100%);
-  border-radius: 2px;
-  animation: shimmer 2s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-
-/* 暗色模式 */
-@media (prefers-color-scheme: dark) {
-  .title {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .status {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .phase-badge {
-    background: linear-gradient(135deg, rgba(192, 132, 252, 0.18) 0%, rgba(170, 59, 255, 0.18) 100%);
-    border-color: rgba(192, 132, 252, 0.4);
-    box-shadow: 0 4px 16px rgba(192, 132, 252, 0.25);
-  }
-
-  .phase-text {
-    color: rgb(192, 132, 252);
-  }
-
-  .progress-bar {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .progress-fill {
-    background: linear-gradient(90deg, rgba(192, 132, 252, 0.8) 0%, rgba(170, 59, 255, 0.8) 100%);
-  }
-
-  .icon-glow {
-    background: radial-gradient(circle, rgba(192, 132, 252, 0.3) 0%, transparent 70%);
-  }
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .placeholder-page {
-    padding: 2rem 1.5rem;
-    min-height: 400px;
-  }
-
-  .icon {
-    font-size: 4rem;
-  }
-
-  .title {
-    font-size: 1.5rem;
-  }
-
-  .status {
-    font-size: 1rem;
-  }
-}
-</style>

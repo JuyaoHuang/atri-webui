@@ -1,33 +1,34 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-import { onMounted } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
+import { computed, onMounted } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 
-const settingsStore = useSettingsStore()
+import { useSettingsStore } from '@/stores/settings'
 
-// 应用启动时加载背景设置
+const settingsStore = useSettingsStore()
+const route = useRoute()
+
+const showGlobalBackground = computed(() => {
+  return Boolean(settingsStore.background.imageUrl) && !route.path.startsWith('/settings')
+})
+
 onMounted(() => {
   settingsStore.loadSettings()
 })
 </script>
 
 <template>
-  <!-- 全局背景层 -->
   <div
-    v-if="settingsStore.background.imageUrl"
+    v-if="showGlobalBackground"
     class="global-background"
     :style="{
       backgroundImage: `url(${settingsStore.background.imageUrl})`,
       opacity: settingsStore.background.opacity / 100,
-      filter: `blur(${settingsStore.background.blur}px)`
+      filter: `blur(${settingsStore.background.blur}px)`,
     }"
-  ></div>
+  />
 
-  <!-- Toast 通知 -->
   <Toaster position="top-center" :duration="2000" />
-
-  <!-- 路由视图 -->
   <RouterView />
 </template>
 

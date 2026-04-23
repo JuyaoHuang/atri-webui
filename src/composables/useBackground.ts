@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+
 import { useSettingsStore } from '@/stores/settings'
 
 export function useBackground() {
@@ -7,23 +8,20 @@ export function useBackground() {
   const settings = computed(() => settingsStore.background)
 
   const uploadImage = async (file: File): Promise<{ success: boolean; error?: string }> => {
-    // 验证文件类型
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      return { success: false, error: '仅支持 PNG/JPG/WEBP 格式' }
+      return { success: false, error: '仅支持 PNG、JPG、WEBP 格式' }
     }
 
-    // 验证文件大小（< 5MB）
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       return { success: false, error: '图片大小不能超过 5MB' }
     }
 
-    // 转换为 Base64
     return new Promise((resolve) => {
       const reader = new FileReader()
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
         settingsStore.updateBackground({ imageUrl: base64 })
         resolve({ success: true })
       }
@@ -47,17 +45,18 @@ export function useBackground() {
   }
 
   const backgroundStyle = computed(() => {
-    const bg = settings.value
-    if (bg.imageUrl) {
-      return {
-        backgroundImage: `url(${bg.imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        opacity: bg.opacity / 100,
-        filter: `blur(${bg.blur}px)`
-      }
+    const background = settings.value
+    if (!background.imageUrl) {
+      return {}
     }
-    return {}
+
+    return {
+      backgroundImage: `url(${background.imageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      opacity: background.opacity / 100,
+      filter: `blur(${background.blur}px)`,
+    }
   })
 
   return {
@@ -66,6 +65,6 @@ export function useBackground() {
     updateOpacity,
     updateBlur,
     reset,
-    backgroundStyle
+    backgroundStyle,
   }
 }
