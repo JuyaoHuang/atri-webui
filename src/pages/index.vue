@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme'
-import Sidebar from '@/components/sidebar/Sidebar.vue'
 import ChatArea from '@/components/chat/ChatArea.vue'
+import Sidebar from '@/components/sidebar/Sidebar.vue'
 
 const { isDark, toggleDark } = useTheme()
 </script>
 
 <template>
   <div class="app-container w-full h-full flex">
-    <!-- 右上角按钮组 - 直接使用 AIRI 的原生代码 -->
     <div class="top-actions">
-      <!-- 主题切换按钮 - 来自 AIRI MobileInteractiveArea.vue 第 199-204 行 -->
       <button
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
@@ -24,7 +22,6 @@ const { isDark, toggleDark } = useTheme()
         </Transition>
       </button>
 
-      <!-- 设置按钮 - 来自 AIRI MobileInteractiveArea.vue 第 211-213 行 -->
       <RouterLink
         to="/settings"
         border="2 solid neutral-100/60 dark:neutral-800/30"
@@ -53,7 +50,7 @@ const { isDark, toggleDark } = useTheme()
   right: 1.5rem;
   z-index: 1000;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.25rem;
 }
 
@@ -64,7 +61,6 @@ const { isDark, toggleDark } = useTheme()
   }
 }
 
-/* AIRI 的 fade 过渡动画 */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
