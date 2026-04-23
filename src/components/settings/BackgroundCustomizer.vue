@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useBackground } from '@/composables/useBackground'
+import { toast } from 'vue-sonner'
 
 const { settings, uploadImage, updateOpacity, updateBlur, reset, backgroundStyle } = useBackground()
 
@@ -18,6 +19,9 @@ const handleFileSelect = async (event: Event) => {
 
   if (!result.success) {
     errorMessage.value = result.error || '上传失败'
+    toast.error(result.error || '上传失败')
+  } else {
+    toast.success('背景图片上传成功！')
   }
 
   // 清空 input，允许重复上传同一文件
@@ -33,6 +37,7 @@ const handleUploadClick = () => {
 const handleReset = () => {
   errorMessage.value = ''
   reset()
+  toast.success('背景已重置为默认')
 }
 </script>
 
