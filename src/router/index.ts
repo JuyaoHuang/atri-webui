@@ -114,7 +114,7 @@ const settingsChildren: RouteRecordRaw[] = [
     component: () => import('@/pages/settings/models.vue'),
     meta: createSettingsMeta({
       order: 8,
-      title: '模型管理',
+      title: '角色模型',
       description: '启用 Live2D 舞台、管理模型资源，并调整模型在主页中的位置与尺寸。',
       icon: 'i-solar:database-bold-duotone',
       phase: 'Phase 8',

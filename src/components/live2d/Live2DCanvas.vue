@@ -157,21 +157,33 @@ const destroyPixi = () => {
   stopBlinkLoop()
 }
 
+const computeScaleAndPosition = () => {
+  let resolvedScale = Math.min(
+    (height.value * 0.95 * 2.2) / initialModelHeight.value,
+    (width.value * 0.95 * 2.2) / initialModelWidth.value
+  ) * props.scale
+
+  if (Number.isNaN(resolvedScale) || resolvedScale <= 0) {
+    resolvedScale = 0.000001
+  }
+
+  return {
+    scale: resolvedScale,
+    x: (width.value / 2) + props.position.x,
+    y: height.value + props.position.y
+  }
+}
+
 const applyTransform = () => {
   if (!model.value || width.value <= 0 || height.value <= 0) {
     return
   }
 
-  const fittedScale = Math.min(
-    (width.value * 0.72) / initialModelWidth.value,
-    (height.value * 0.92) / initialModelHeight.value
-  )
-  const resolvedScale = Math.max(fittedScale * props.scale * 1.85, 0.01)
-
-  model.value.scale.set(resolvedScale, resolvedScale)
-  model.value.anchor.set(0.5, 1)
-  model.value.x = (width.value / 2) + props.position.x
-  model.value.y = height.value + props.position.y
+  const transform = computeScaleAndPosition()
+  model.value.scale.set(transform.scale, transform.scale)
+  model.value.anchor.set(0.5, 0.5)
+  model.value.x = transform.x
+  model.value.y = transform.y
 }
 
 const getCoreModel = () => {
@@ -315,7 +327,7 @@ const loadModel = async () => {
     initialModelWidth.value = Math.max(loadedModel.width, 1)
     initialModelHeight.value = Math.max(loadedModel.height, 1)
 
-    loadedModel.anchor.set(0.5, 1)
+    loadedModel.anchor.set(0.5, 0.5)
     app.value.stage.addChild(loadedModel as never)
     model.value = loadedModel
     applyTransform()

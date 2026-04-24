@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { useMouse } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useMouse, useWindowSize } from '@vueuse/core'
 
 import { useTheme } from '@/composables/useTheme'
-import Live2DCanvas from '@/components/live2d/Live2DCanvas.vue'
-import StageHeader from '@/components/live2d/StageHeader.vue'
-import StageChatShell from '@/components/live2d/StageChatShell.vue'
 import ChatArea from '@/components/chat/ChatArea.vue'
+import Live2DCanvas from '@/components/live2d/Live2DCanvas.vue'
+import StageChatShell from '@/components/live2d/StageChatShell.vue'
+import StageHeader from '@/components/live2d/StageHeader.vue'
 import Sidebar from '@/components/sidebar/Sidebar.vue'
 import { useCharactersStore } from '@/stores/characters'
 import { useLive2dStore } from '@/stores/live2d'
@@ -16,6 +16,14 @@ const charactersStore = useCharactersStore()
 const live2dStore = useLive2dStore()
 const isLive2dMode = computed(() => live2dStore.enabled)
 const mouse = useMouse()
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
+const { width: windowWidth } = useWindowSize()
+
+const stageModelPosition = computed(() => ({
+  x: live2dStore.position.x - (isMobile.value ? 0 : windowWidth.value * 0.1),
+  y: live2dStore.position.y
+}))
 
 onMounted(() => {
   void charactersStore.fetchCharacters()
@@ -62,41 +70,32 @@ watch(isLive2dMode, (enabled) => {
     </template>
 
     <template v-else>
-      <div class="stage-layout-shell">
-        <div class="stage-header-row">
+      <div class="stage-page-root">
+        <div class="stage-header-wrap">
           <StageHeader />
         </div>
 
-        <div class="stage-layout">
-          <div class="stage-page">
-            <div class="stage-scene">
-              <div class="stage-canvas-shell">
-                <Live2DCanvas
-                  :model-url="live2dStore.activeModel?.modelUrl"
-                  :position="live2dStore.position"
-                  :scale="live2dStore.scale"
-                  :expression-request="live2dStore.expressionRequest"
-                  :model-parameters="live2dStore.modelParameters"
-                  :focus-at="{ x: mouse.x.value, y: mouse.y.value }"
-                  :disable-focus="live2dStore.disableFocus"
-                  :auto-blink-enabled="live2dStore.autoBlinkEnabled"
-                  :force-auto-blink-enabled="live2dStore.forceAutoBlinkEnabled"
-                  :shadow-enabled="live2dStore.shadowEnabled"
-                  :max-fps="live2dStore.maxFps"
-                  :resolution="live2dStore.renderScale"
-                  empty-text="未找到可用的 Live2D 模型。前往 /settings/models 导入模型后即可启用完整舞台。"
-                />
-              </div>
-            </div>
-
-            <div class="stage-chat-shell">
-              <StageChatShell />
-            </div>
+        <div class="stage-page-body">
+          <div class="stage-widget">
+            <Live2DCanvas
+              :model-url="live2dStore.activeModel?.modelUrl"
+              :position="stageModelPosition"
+              :scale="live2dStore.scale"
+              :expression-request="live2dStore.expressionRequest"
+              :model-parameters="live2dStore.modelParameters"
+              :focus-at="{ x: mouse.x.value, y: mouse.y.value }"
+              :disable-focus="live2dStore.disableFocus"
+              :auto-blink-enabled="live2dStore.autoBlinkEnabled"
+              :force-auto-blink-enabled="live2dStore.forceAutoBlinkEnabled"
+              :shadow-enabled="live2dStore.shadowEnabled"
+              :max-fps="live2dStore.maxFps"
+              :resolution="live2dStore.renderScale"
+              empty-text="No available Live2D model. Import one in /settings/models to enable the stage."
+            />
           </div>
-        </div>
 
-        <div class="stage-orb stage-orb-left" />
-        <div class="stage-orb stage-orb-right" />
+          <StageChatShell class="stage-interactive-area" />
+        </div>
       </div>
     </template>
   </div>
@@ -110,6 +109,9 @@ watch(isLive2dMode, (enabled) => {
 
 .stage-mode {
   display: block;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .top-actions {
@@ -122,86 +124,54 @@ watch(isLive2dMode, (enabled) => {
   gap: 0.25rem;
 }
 
-.stage-layout-shell {
+.stage-page-root {
   position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  isolation: isolate;
 }
 
-.stage-header-row {
-  padding: 0.25rem 0 0.25rem;
+.stage-header-wrap {
+  width: 100%;
+  padding: 0.25rem 0.75rem 0.75rem;
 }
 
-.stage-layout {
+.stage-page-body {
   position: relative;
   display: flex;
   flex: 1 1 auto;
   width: 100%;
-  height: calc(100dvh - 4.25rem);
-}
-
-.stage-page {
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  gap: 0.5rem;
-  width: 100%;
-  height: 100%;
-}
-
-.stage-scene {
-  flex: 1 1 auto;
-  min-width: 50%;
-  position: relative;
-  height: 100%;
-  min-height: calc(100dvh - 100px - 56px);
-}
-
-.stage-canvas-shell {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-height: calc(100dvh - 100px - 56px);
-}
-
-.stage-chat-shell {
-  position: absolute;
-  right: 1rem;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  z-index: 35;
-  width: min(31.25rem, calc(100vw - 2rem));
-  min-width: 30%;
-  height: 85dvh;
   min-height: 0;
 }
 
-.stage-orb {
+.stage-widget {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 50%;
+  min-height: 0;
+  height: 100%;
+}
+
+.stage-widget :deep(.live2d-canvas) {
+  width: 100%;
+  height: 100%;
+}
+
+.stage-interactive-area {
   position: absolute;
-  border-radius: 999px;
-  filter: blur(56px);
-  pointer-events: none;
-  opacity: 0.8;
-}
-
-.stage-orb-left {
-  top: 12%;
-  left: 18%;
-  width: 16rem;
-  height: 16rem;
-  background: rgb(152 236 255 / 0.22);
-}
-
-.stage-orb-right {
-  right: 8%;
-  bottom: 20%;
-  width: 14rem;
-  height: 14rem;
-  background: rgb(24 181 216 / 0.18);
+  top: 0;
+  right: 1rem;
+  z-index: 35;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: min(31.25rem, calc(100vw - 2rem));
+  min-width: min(30%, 20rem);
+  height: 85dvh;
+  min-height: 0;
 }
 
 @media (max-width: 768px) {
@@ -210,22 +180,25 @@ watch(isLive2dMode, (enabled) => {
     right: 1rem;
   }
 
-  .stage-chat-shell {
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
-    width: auto;
-    height: min(27rem, calc(100vh - 23rem));
+  .stage-header-wrap {
+    padding: 0;
   }
 
-  .stage-layout {
+  .stage-page-body {
     height: 100dvh;
   }
 
-  .stage-scene,
-  .stage-canvas-shell {
+  .stage-widget {
     min-height: calc(100dvh - 23rem);
-    max-height: calc(100dvh - 23rem);
+  }
+
+  .stage-interactive-area {
+    top: auto;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    width: auto;
+    height: min(27rem, calc(100vh - 23rem));
   }
 }
 
