@@ -26,6 +26,14 @@ export const live2dApi = {
     return data
   },
 
+  async update(modelId: string, payload: { name: string }): Promise<Live2DModelResponse> {
+    const { data } = await client.put<Live2DModelResponse>(
+      `/api/live2d/models/${encodeURIComponent(modelId)}`,
+      payload
+    )
+    return data
+  },
+
   async remove(modelId: string): Promise<void> {
     await client.delete(`/api/live2d/models/${encodeURIComponent(modelId)}`)
   },

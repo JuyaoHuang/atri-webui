@@ -7,12 +7,19 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 
 import type { Live2DExpressionRequest, Live2DPosition } from '@/types/live2d'
+import type { Live2DModelParameters } from '@/stores/live2d'
 
 interface Props {
   modelUrl?: string | null
   position?: Live2DPosition
   scale?: number
   expressionRequest?: Live2DExpressionRequest | null
+  modelParameters?: Live2DModelParameters
+  focusAt?: { x: number, y: number }
+  disableFocus?: boolean
+  autoBlinkEnabled?: boolean
+  forceAutoBlinkEnabled?: boolean
+  shadowEnabled?: boolean
   maxFps?: number
   resolution?: number
   emptyText?: string
@@ -23,6 +30,35 @@ const props = withDefaults(defineProps<Props>(), {
   position: () => ({ x: 0, y: 0 }),
   scale: 1,
   expressionRequest: null,
+  modelParameters: () => ({
+    angleX: 0,
+    angleY: 0,
+    angleZ: 0,
+    leftEyeOpen: 1,
+    rightEyeOpen: 1,
+    leftEyeSmile: 0,
+    rightEyeSmile: 0,
+    leftEyebrowLR: 0,
+    rightEyebrowLR: 0,
+    leftEyebrowY: 0,
+    rightEyebrowY: 0,
+    leftEyebrowAngle: 0,
+    rightEyebrowAngle: 0,
+    leftEyebrowForm: 0,
+    rightEyebrowForm: 0,
+    mouthOpen: 0,
+    mouthForm: 0,
+    cheek: 0,
+    bodyAngleX: 0,
+    bodyAngleY: 0,
+    bodyAngleZ: 0,
+    breath: 0
+  }),
+  focusAt: () => ({ x: 0, y: 0 }),
+  disableFocus: false,
+  autoBlinkEnabled: true,
+  forceAutoBlinkEnabled: false,
+  shadowEnabled: true,
   maxFps: 60,
   resolution: 2,
   emptyText: '当前没有可渲染的 Live2D 模型。'
@@ -44,6 +80,8 @@ const height = ref(0)
 const initialModelWidth = ref(1)
 const initialModelHeight = ref(1)
 let resizeObserver: ResizeObserver | null = null
+let blinkTimer: number | null = null
+let blinkResetTimer: number | null = null
 
 const hasModel = computed(() => Boolean(props.modelUrl))
 
@@ -116,6 +154,7 @@ const destroyPixi = () => {
     app.value = null
   }
   canvasReady.value = false
+  stopBlinkLoop()
 }
 
 const applyTransform = () => {
@@ -133,6 +172,112 @@ const applyTransform = () => {
   model.value.anchor.set(0.5, 1)
   model.value.x = (width.value / 2) + props.position.x
   model.value.y = height.value + props.position.y
+}
+
+const getCoreModel = () => {
+  return (model.value?.internalModel as { coreModel?: { setParameterValueById: (id: string, value: number) => void } })?.coreModel
+}
+
+const setCoreParameter = (id: string, value: number) => {
+  const coreModel = getCoreModel()
+  coreModel?.setParameterValueById(id, value)
+}
+
+const applyModelParameters = () => {
+  const coreModel = getCoreModel()
+  if (!coreModel || !props.modelParameters) {
+    return
+  }
+
+  const parameters = props.modelParameters
+
+  coreModel.setParameterValueById('ParamAngleX', parameters.angleX)
+  coreModel.setParameterValueById('ParamAngleY', parameters.angleY)
+  coreModel.setParameterValueById('ParamAngleZ', parameters.angleZ)
+  coreModel.setParameterValueById('ParamEyeLOpen', parameters.leftEyeOpen)
+  coreModel.setParameterValueById('ParamEyeROpen', parameters.rightEyeOpen)
+  coreModel.setParameterValueById('ParamEyeSmile', parameters.leftEyeSmile)
+  coreModel.setParameterValueById('ParamBrowLX', parameters.leftEyebrowLR)
+  coreModel.setParameterValueById('ParamBrowRX', parameters.rightEyebrowLR)
+  coreModel.setParameterValueById('ParamBrowLY', parameters.leftEyebrowY)
+  coreModel.setParameterValueById('ParamBrowRY', parameters.rightEyebrowY)
+  coreModel.setParameterValueById('ParamBrowLAngle', parameters.leftEyebrowAngle)
+  coreModel.setParameterValueById('ParamBrowRAngle', parameters.rightEyebrowAngle)
+  coreModel.setParameterValueById('ParamBrowLForm', parameters.leftEyebrowForm)
+  coreModel.setParameterValueById('ParamBrowRForm', parameters.rightEyebrowForm)
+  coreModel.setParameterValueById('ParamMouthOpenY', parameters.mouthOpen)
+  coreModel.setParameterValueById('ParamMouthForm', parameters.mouthForm)
+  coreModel.setParameterValueById('ParamCheek', parameters.cheek)
+  coreModel.setParameterValueById('ParamBodyAngleX', parameters.bodyAngleX)
+  coreModel.setParameterValueById('ParamBodyAngleY', parameters.bodyAngleY)
+  coreModel.setParameterValueById('ParamBodyAngleZ', parameters.bodyAngleZ)
+  coreModel.setParameterValueById('ParamBreath', parameters.breath)
+}
+
+const applyFocus = () => {
+  if (props.disableFocus) {
+    setCoreParameter('ParamEyeBallX', 0)
+    setCoreParameter('ParamEyeBallY', 0)
+    return
+  }
+
+  if (!containerRef.value || width.value <= 0 || height.value <= 0) {
+    return
+  }
+
+  const rect = containerRef.value.getBoundingClientRect()
+  const relativeX = ((props.focusAt.x - rect.left) / Math.max(rect.width, 1)) * 2 - 1
+  const relativeY = ((props.focusAt.y - rect.top) / Math.max(rect.height, 1)) * 2 - 1
+
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+  setCoreParameter('ParamEyeBallX', clamp(relativeX))
+  setCoreParameter('ParamEyeBallY', clamp(relativeY))
+}
+
+const applyShadow = () => {
+  if (!model.value) {
+    return
+  }
+
+  model.value.filters = props.shadowEnabled ? null : []
+}
+
+const stopBlinkLoop = () => {
+  if (blinkTimer != null) {
+    window.clearTimeout(blinkTimer)
+    blinkTimer = null
+  }
+
+  if (blinkResetTimer != null) {
+    window.clearTimeout(blinkResetTimer)
+    blinkResetTimer = null
+  }
+}
+
+const startBlinkLoop = () => {
+  stopBlinkLoop()
+
+  if (!model.value || (!props.autoBlinkEnabled && !props.forceAutoBlinkEnabled)) {
+    return
+  }
+
+  const scheduleBlink = () => {
+    blinkTimer = window.setTimeout(() => {
+      const leftBase = props.modelParameters.leftEyeOpen
+      const rightBase = props.modelParameters.rightEyeOpen
+
+      setCoreParameter('ParamEyeLOpen', 0)
+      setCoreParameter('ParamEyeROpen', 0)
+
+      blinkResetTimer = window.setTimeout(() => {
+        setCoreParameter('ParamEyeLOpen', leftBase)
+        setCoreParameter('ParamEyeROpen', rightBase)
+        scheduleBlink()
+      }, 160)
+    }, 1800 + Math.random() * 2200)
+  }
+
+  scheduleBlink()
 }
 
 const handleResize = () => {
@@ -174,6 +319,10 @@ const loadModel = async () => {
     app.value.stage.addChild(loadedModel as never)
     model.value = loadedModel
     applyTransform()
+    applyModelParameters()
+    applyFocus()
+    applyShadow()
+    startBlinkLoop()
     emit('loaded')
   } catch (error) {
     console.error('加载 Live2D 模型失败:', error)
@@ -237,6 +386,55 @@ watch(
 
 watch(() => props.expressionRequest?.token, async () => {
   await applyExpression()
+})
+
+watch(
+  () => props.modelParameters,
+  () => {
+    applyModelParameters()
+  },
+  { deep: true }
+)
+
+watch(
+  () => [props.focusAt.x, props.focusAt.y, props.disableFocus],
+  () => {
+    applyFocus()
+  }
+)
+
+watch(
+  () => props.shadowEnabled,
+  () => {
+    applyShadow()
+  }
+)
+
+watch(
+  () => [props.autoBlinkEnabled, props.forceAutoBlinkEnabled],
+  () => {
+    startBlinkLoop()
+  }
+)
+
+async function captureFrame() {
+  const canvas = app.value?.view
+  if (!canvas) {
+    return undefined
+  }
+
+  return await new Promise<Blob | undefined>((resolve) => {
+    canvas.toBlob(blob => resolve(blob ?? undefined))
+  })
+}
+
+function canvasElement() {
+  return app.value?.view
+}
+
+defineExpose({
+  captureFrame,
+  canvasElement
 })
 </script>
 

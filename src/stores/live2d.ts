@@ -10,6 +10,40 @@ interface Live2DPreferences {
   activeModelId: string | null
   position: Live2DPosition
   scale: number
+  disableFocus: boolean
+  idleAnimationEnabled: boolean
+  autoBlinkEnabled: boolean
+  forceAutoBlinkEnabled: boolean
+  shadowEnabled: boolean
+  maxFps: number
+  renderScale: number
+  modelParameters: Live2DModelParameters
+  savedExpressionDefaults: string[]
+}
+
+export interface Live2DModelParameters {
+  angleX: number
+  angleY: number
+  angleZ: number
+  leftEyeOpen: number
+  rightEyeOpen: number
+  leftEyeSmile: number
+  rightEyeSmile: number
+  leftEyebrowLR: number
+  rightEyebrowLR: number
+  leftEyebrowY: number
+  rightEyebrowY: number
+  leftEyebrowAngle: number
+  rightEyebrowAngle: number
+  leftEyebrowForm: number
+  rightEyebrowForm: number
+  mouthOpen: number
+  mouthForm: number
+  cheek: number
+  bodyAngleX: number
+  bodyAngleY: number
+  bodyAngleZ: number
+  breath: number
 }
 
 export interface Live2DState extends Live2DPreferences {
@@ -17,14 +51,49 @@ export interface Live2DState extends Live2DPreferences {
   loading: boolean
   uploading: boolean
   expressionRequest: Live2DExpressionRequest
+  activeExpressions: string[]
 }
 
 const STORAGE_KEY = 'atri-live2d-settings'
+const DEFAULT_MODEL_PARAMETERS: Live2DModelParameters = {
+  angleX: 0,
+  angleY: 0,
+  angleZ: 0,
+  leftEyeOpen: 1,
+  rightEyeOpen: 1,
+  leftEyeSmile: 0,
+  rightEyeSmile: 0,
+  leftEyebrowLR: 0,
+  rightEyebrowLR: 0,
+  leftEyebrowY: 0,
+  rightEyebrowY: 0,
+  leftEyebrowAngle: 0,
+  rightEyebrowAngle: 0,
+  leftEyebrowForm: 0,
+  rightEyebrowForm: 0,
+  mouthOpen: 0,
+  mouthForm: 0,
+  cheek: 0,
+  bodyAngleX: 0,
+  bodyAngleY: 0,
+  bodyAngleZ: 0,
+  breath: 0
+}
+
 const DEFAULT_PREFERENCES: Live2DPreferences = {
   enabled: false,
   activeModelId: null,
   position: { x: 0, y: 0 },
-  scale: 1
+  scale: 1,
+  disableFocus: false,
+  idleAnimationEnabled: true,
+  autoBlinkEnabled: true,
+  forceAutoBlinkEnabled: false,
+  shadowEnabled: true,
+  maxFps: 0,
+  renderScale: 2,
+  modelParameters: { ...DEFAULT_MODEL_PARAMETERS },
+  savedExpressionDefaults: []
 }
 
 function loadPreferences(): Live2DPreferences {
@@ -42,7 +111,19 @@ function loadPreferences(): Live2DPreferences {
         x: parsed.position?.x ?? DEFAULT_PREFERENCES.position.x,
         y: parsed.position?.y ?? DEFAULT_PREFERENCES.position.y
       },
-      scale: parsed.scale ?? DEFAULT_PREFERENCES.scale
+      scale: parsed.scale ?? DEFAULT_PREFERENCES.scale,
+      disableFocus: parsed.disableFocus ?? DEFAULT_PREFERENCES.disableFocus,
+      idleAnimationEnabled: parsed.idleAnimationEnabled ?? DEFAULT_PREFERENCES.idleAnimationEnabled,
+      autoBlinkEnabled: parsed.autoBlinkEnabled ?? DEFAULT_PREFERENCES.autoBlinkEnabled,
+      forceAutoBlinkEnabled: parsed.forceAutoBlinkEnabled ?? DEFAULT_PREFERENCES.forceAutoBlinkEnabled,
+      shadowEnabled: parsed.shadowEnabled ?? DEFAULT_PREFERENCES.shadowEnabled,
+      maxFps: parsed.maxFps ?? DEFAULT_PREFERENCES.maxFps,
+      renderScale: parsed.renderScale ?? DEFAULT_PREFERENCES.renderScale,
+      modelParameters: {
+        ...DEFAULT_MODEL_PARAMETERS,
+        ...parsed.modelParameters
+      },
+      savedExpressionDefaults: parsed.savedExpressionDefaults ?? DEFAULT_PREFERENCES.savedExpressionDefaults
     }
   } catch (error) {
     console.error('加载 Live2D 设置失败:', error)
@@ -74,7 +155,8 @@ export const useLive2dStore = defineStore('live2d', {
       expressionRequest: {
         name: null,
         token: 0
-      }
+      },
+      activeExpressions: preferences.savedExpressionDefaults
     }
   },
 
@@ -91,7 +173,16 @@ export const useLive2dStore = defineStore('live2d', {
           enabled: this.enabled,
           activeModelId: this.activeModelId,
           position: this.position,
-          scale: this.scale
+          scale: this.scale,
+          disableFocus: this.disableFocus,
+          idleAnimationEnabled: this.idleAnimationEnabled,
+          autoBlinkEnabled: this.autoBlinkEnabled,
+          forceAutoBlinkEnabled: this.forceAutoBlinkEnabled,
+          shadowEnabled: this.shadowEnabled,
+          maxFps: this.maxFps,
+          renderScale: this.renderScale,
+          modelParameters: this.modelParameters,
+          savedExpressionDefaults: this.savedExpressionDefaults
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
       } catch (error) {
@@ -151,6 +242,20 @@ export const useLive2dStore = defineStore('live2d', {
       }
     },
 
+    async renameModel(modelId: string, name: string) {
+      const response = await live2dApi.update(modelId, { name })
+      const nextModel = mapModel(response)
+      const index = this.models.findIndex(model => model.id === modelId)
+      if (index >= 0) {
+        this.models.splice(index, 1, nextModel)
+      }
+      if (this.activeModelId === modelId) {
+        this.activeModelId = nextModel.id
+      }
+      this.savePreferences()
+      return nextModel
+    },
+
     async deleteModel(modelId: string) {
       await live2dApi.remove(modelId)
       this.models = this.models.filter(model => model.id !== modelId)
@@ -176,6 +281,41 @@ export const useLive2dStore = defineStore('live2d', {
       this.savePreferences()
     },
 
+    setMaxFps(value: number) {
+      this.maxFps = value
+      this.savePreferences()
+    },
+
+    setRenderScale(value: number) {
+      this.renderScale = value
+      this.savePreferences()
+    },
+
+    setDisableFocus(value: boolean) {
+      this.disableFocus = value
+      this.savePreferences()
+    },
+
+    setIdleAnimationEnabled(value: boolean) {
+      this.idleAnimationEnabled = value
+      this.savePreferences()
+    },
+
+    setAutoBlinkEnabled(value: boolean) {
+      this.autoBlinkEnabled = value
+      this.savePreferences()
+    },
+
+    setForceAutoBlinkEnabled(value: boolean) {
+      this.forceAutoBlinkEnabled = value
+      this.savePreferences()
+    },
+
+    setShadowEnabled(value: boolean) {
+      this.shadowEnabled = value
+      this.savePreferences()
+    },
+
     setPosition(position: Partial<Live2DPosition>) {
       this.position = {
         ...this.position,
@@ -190,6 +330,19 @@ export const useLive2dStore = defineStore('live2d', {
       this.savePreferences()
     },
 
+    setModelParameter<K extends keyof Live2DModelParameters>(key: K, value: Live2DModelParameters[K]) {
+      this.modelParameters = {
+        ...this.modelParameters,
+        [key]: value
+      }
+      this.savePreferences()
+    },
+
+    resetModelParameters() {
+      this.modelParameters = { ...DEFAULT_MODEL_PARAMETERS }
+      this.savePreferences()
+    },
+
     requestExpression(name: string | null) {
       const activeModel = this.models.find(model => model.id === this.activeModelId)
       const matchedExpression = !name || !activeModel
@@ -200,6 +353,39 @@ export const useLive2dStore = defineStore('live2d', {
         name: matchedExpression,
         token: Date.now()
       }
+
+      this.activeExpressions = matchedExpression ? [matchedExpression] : []
+    },
+
+    toggleExpression(name: string) {
+      const isActive = this.activeExpressions.includes(name)
+      if (isActive) {
+        this.activeExpressions = this.activeExpressions.filter(item => item !== name)
+        this.requestExpression(null)
+        return
+      }
+
+      this.activeExpressions = [name]
+      this.requestExpression(name)
+    },
+
+    saveExpressionDefaults() {
+      this.savedExpressionDefaults = [...this.activeExpressions]
+      this.savePreferences()
+    },
+
+    resetAllExpressions() {
+      this.activeExpressions = [...this.savedExpressionDefaults]
+      this.requestExpression(this.activeExpressions[0] || null)
+      this.savePreferences()
+    },
+
+    clearModelCache() {
+      this.resetModelParameters()
+      this.resetTransform()
+      this.activeExpressions = []
+      this.requestExpression(null)
+      this.savePreferences()
     },
 
     parseAndApplyExpression(text: string) {

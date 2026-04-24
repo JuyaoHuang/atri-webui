@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import { useMouse } from '@vueuse/core'
 
 import { useTheme } from '@/composables/useTheme'
 import Live2DCanvas from '@/components/live2d/Live2DCanvas.vue'
@@ -14,6 +15,7 @@ const { isDark, toggleDark } = useTheme()
 const charactersStore = useCharactersStore()
 const live2dStore = useLive2dStore()
 const isLive2dMode = computed(() => live2dStore.enabled)
+const mouse = useMouse()
 
 onMounted(() => {
   void charactersStore.fetchCharacters()
@@ -74,6 +76,14 @@ watch(isLive2dMode, (enabled) => {
                   :position="live2dStore.position"
                   :scale="live2dStore.scale"
                   :expression-request="live2dStore.expressionRequest"
+                  :model-parameters="live2dStore.modelParameters"
+                  :focus-at="{ x: mouse.x.value, y: mouse.y.value }"
+                  :disable-focus="live2dStore.disableFocus"
+                  :auto-blink-enabled="live2dStore.autoBlinkEnabled"
+                  :force-auto-blink-enabled="live2dStore.forceAutoBlinkEnabled"
+                  :shadow-enabled="live2dStore.shadowEnabled"
+                  :max-fps="live2dStore.maxFps"
+                  :resolution="live2dStore.renderScale"
                   empty-text="未找到可用的 Live2D 模型。前往 /settings/models 导入模型后即可启用完整舞台。"
                 />
               </div>
@@ -146,12 +156,15 @@ watch(isLive2dMode, (enabled) => {
   min-width: 50%;
   position: relative;
   height: 100%;
+  min-height: calc(100dvh - 100px - 56px);
 }
 
 .stage-canvas-shell {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  max-height: calc(100dvh - 100px - 56px);
 }
 
 .stage-chat-shell {
@@ -207,6 +220,12 @@ watch(isLive2dMode, (enabled) => {
 
   .stage-layout {
     height: 100dvh;
+  }
+
+  .stage-scene,
+  .stage-canvas-shell {
+    min-height: calc(100dvh - 23rem);
+    max-height: calc(100dvh - 23rem);
   }
 }
 
