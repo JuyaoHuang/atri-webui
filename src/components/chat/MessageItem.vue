@@ -7,10 +7,12 @@ import { resolveAvatarUrl } from '@/utils/avatar'
 
 interface Props {
   message: Message
+  variant?: 'default' | 'stage'
 }
 
 const props = defineProps<Props>()
 const userStore = useUserStore()
+const isStage = computed(() => props.variant === 'stage')
 
 const formatTime = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -35,8 +37,14 @@ const avatarSrc = computed(() => {
 </script>
 
 <template>
-  <div class="message-item" :class="message.role === 'human' ? 'human-message' : 'ai-message'">
-    <div v-if="message.role === 'ai'" class="message-avatar">
+  <div
+    class="message-item"
+    :class="[
+      message.role === 'human' ? 'human-message' : 'ai-message',
+      isStage ? 'stage-message' : ''
+    ]"
+  >
+    <div v-if="message.role === 'ai' && !isStage" class="message-avatar">
       <img
         v-if="avatarSrc"
         :src="avatarSrc"
@@ -48,6 +56,22 @@ const avatarSrc = computed(() => {
       </div>
     </div>
 
+    <div
+      v-if="isStage"
+      class="stage-corner-avatar"
+      :class="message.role === 'human' ? 'stage-user-avatar' : 'stage-ai-avatar'"
+    >
+      <img
+        v-if="avatarSrc"
+        :src="avatarSrc"
+        :alt="displayName"
+        class="w-full h-full rounded-full object-cover"
+      >
+      <div v-else class="fallback-avatar" :class="message.role === 'human' ? 'user-fallback' : 'ai-fallback'">
+        {{ message.role === 'human' ? displayName.slice(0, 2) : 'AI' }}
+      </div>
+    </div>
+
     <div class="message-content">
       <div class="message-header">
         <span class="message-role">{{ displayName }}</span>
@@ -56,7 +80,7 @@ const avatarSrc = computed(() => {
       <div class="message-text">{{ message.content }}</div>
     </div>
 
-    <div v-if="message.role === 'human'" class="message-avatar">
+    <div v-if="message.role === 'human' && !isStage" class="message-avatar">
       <img
         v-if="avatarSrc"
         :src="avatarSrc"
@@ -122,12 +146,15 @@ const avatarSrc = computed(() => {
   background: rgb(240 252 255 / 0.8);
   box-shadow: 0 1px 2px rgb(152 236 255 / 0.5);
   color: #0071a0;
+  max-width: calc(100% - 3rem);
 }
 
 .message-item.human-message .message-content {
   background: rgb(245 245 245 / 0.8);
   box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
   color: rgb(38 38 38);
+  margin-left: auto;
+  margin-right: -5rem;
 }
 
 .message-header {
@@ -156,6 +183,95 @@ const avatarSrc = computed(() => {
   line-height: 1.6;
 }
 
+.stage-message {
+  position: relative;
+  display: block;
+  margin-bottom: 10px;
+  padding-top: 1.8rem;
+}
+
+.stage-message .stage-corner-avatar {
+  position: absolute;
+  top: -0.15rem;
+  z-index: 3;
+  display: flex;
+  width: 2.2rem;
+  height: 2.2rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-message .stage-corner-avatar {
+  top: 0;
+}
+
+.stage-message.ai-message {
+  align-items: flex-start;
+  margin-right: 0rem;
+  margin-left: 0.5rem;
+}
+
+.stage-message.human-message {
+  align-items: flex-start;
+  margin-right: 5rem;
+  margin-left: 0rem;
+}
+
+.stage-message.ai-message .stage-corner-avatar {
+  left: -0.3rem;
+  top: 0.1rem;
+}
+
+.stage-message.human-message .stage-corner-avatar {
+  right: -5rem;
+  top: 0rem;
+}
+
+.stage-message .stage-corner-avatar img,
+.stage-message .stage-corner-avatar .fallback-avatar {
+  display: flex;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 2px solid rgb(255 255 255 / 0.9);
+  object-fit: cover;
+  box-shadow:
+    0 10px 20px rgb(0 129 179 / 0.12),
+    0 0 0 1px rgb(152 236 255 / 0.32);
+}
+
+.stage-message.ai-message .message-content {
+  background: rgb(240 252 255 / 0.82);
+  box-shadow: 0 1px 2px rgb(152 236 255 / 0.5);
+  color: #0071a0;
+}
+
+.stage-message.human-message .message-content {
+  background: rgb(245 245 245 / 0.82);
+  box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
+  color: rgb(38 38 38);
+}
+
+.stage-message .message-role {
+  font-size: 0.875rem;
+}
+
+.stage-message .message-header {
+  margin-bottom: 6px;
+}
+
+.stage-message .message-text {
+  line-height: 1.7;
+}
+
+.stage-message .ai-fallback {
+  background: linear-gradient(135deg, #18b5d8, #63d9dc);
+}
+
+.stage-message .user-fallback {
+  background: linear-gradient(135deg, #7f8ea3, #5f6b7d);
+}
+
 .dark .message-item.ai-message .message-content {
   background: rgb(0 51 69 / 0.8);
   box-shadow: none;
@@ -174,5 +290,13 @@ const avatarSrc = computed(() => {
 
 .dark .message-time {
   color: rgb(255 255 255 / 0.42);
+}
+
+.dark .stage-message .stage-corner-avatar img,
+.dark .stage-message .stage-corner-avatar .fallback-avatar {
+  border-color: rgb(0 51 69 / 0.92);
+  box-shadow:
+    0 10px 20px rgb(0 0 0 / 0.22),
+    0 0 0 1px rgb(41 189 226 / 0.22);
 }
 </style>

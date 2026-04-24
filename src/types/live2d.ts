@@ -1,0 +1,20 @@
+export interface Live2DModel {
+  id: string
+  name: string
+  modelPath: string
+  modelUrl: string
+  thumbnailUrl?: string
+  expressions: string[]
+  createdAt: string
+  isDefault: boolean
+}
+
+export interface Live2DPosition {
+  x: number
+  y: number
+}
+
+export interface Live2DExpressionRequest {
+  name: string | null
+  token: number
+}

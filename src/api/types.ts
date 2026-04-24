@@ -38,6 +38,23 @@ export interface AvatarUploadResponse {
   avatar_url: string
 }
 
+// Live2D 相关
+export interface Live2DModelResponse {
+  id: string
+  name: string
+  model_path: string
+  model_url: string
+  thumbnail_url?: string | null
+  expressions: string[]
+  created_at: string
+  is_default: boolean
+}
+
+export interface Live2DExpressionResponse {
+  model_id: string
+  expressions: string[]
+}
+
 // 聊天相关
 export interface ChatListParams {
   character_id?: string

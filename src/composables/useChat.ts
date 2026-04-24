@@ -1,17 +1,20 @@
 import { computed } from 'vue'
 import { toast } from 'vue-sonner'
 
+import { chatsApi } from '@/api/chats'
 import { useCharactersStore } from '@/stores/characters'
 import { useChatStore } from '@/stores/chat'
 import { useChatsStore } from '@/stores/chats'
+import { useLive2dStore } from '@/stores/live2d'
 import { useWebSocketStore } from '@/stores/websocket'
-import { chatsApi } from '@/api/chats'
+import { extractLive2dExpression } from '@/utils/live2dExpression'
 
 export function useChat() {
   const chatStore = useChatStore()
   const chatsStore = useChatsStore()
   const wsStore = useWebSocketStore()
   const charactersStore = useCharactersStore()
+  const live2dStore = useLive2dStore()
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return
@@ -90,24 +93,33 @@ export function useChat() {
   const loadHistory = async (chatId: string) => {
     try {
       const response = await chatsApi.get({ chat_id: chatId })
+      let lastAssistantExpression: string | null = null
       chatStore.messages = response.messages.map((msg, index) => {
         // 如果是 AI 消息且有 name，从 characters store 获取 avatar
         let avatar: string | undefined
+        let content = msg.content
         if (msg.role === 'ai' && msg.name) {
           const character = charactersStore.characters.find((c) => c.id === msg.name)
           avatar = character?.avatarUrl || character?.avatar
+          const parsed = extractLive2dExpression(msg.content)
+          content = parsed.content
+          if (parsed.expression) {
+            lastAssistantExpression = parsed.expression
+          }
         }
 
         return {
           id: `msg_${index}`,
           chat_id: chatId,
           role: msg.role,
-          content: msg.content,
+          content,
           timestamp: msg.timestamp,
           name: msg.name,
           avatar
         }
       })
+
+      live2dStore.requestExpression(lastAssistantExpression)
     } catch (error) {
       console.error('加载聊天历史失败:', error)
     }

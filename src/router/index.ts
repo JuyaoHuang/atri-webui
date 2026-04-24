@@ -111,14 +111,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'models',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/models.vue'),
     meta: createSettingsMeta({
       order: 8,
       title: '模型管理',
-      description: '整理模型列表、分组和默认使用策略。',
+      description: '启用 Live2D 舞台、管理模型资源，并调整模型在主页中的位置与尺寸。',
       icon: 'i-solar:database-bold-duotone',
       phase: 'Phase 8',
-      status: 'developing',
+      status: 'active',
     }),
   },
   {
