@@ -49,7 +49,8 @@ watch(
       }
 
       loadHistory(chatId)
-    } else {
+    }
+    else {
       chatStore.clearMessages()
     }
   },
@@ -62,7 +63,6 @@ watch(
     <div class="stage-chat-container">
       <div class="stage-chat-toolbar">
         <div class="toolbar-copy">
-          <p class="toolbar-kicker">Interactive Area</p>
           <h2>对话区域</h2>
         </div>
 
@@ -146,15 +146,7 @@ watch(
   min-width: 0;
 }
 
-.toolbar-kicker {
-  color: rgb(0 129 179 / 0.58);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .toolbar-copy h2 {
-  margin-top: 0.2rem;
   color: #0071a0;
   font-size: 1rem;
   font-weight: 800;
@@ -262,10 +254,6 @@ watch(
 .dark .stage-chat-toolbar {
   border-bottom-color: rgb(41 189 226 / 0.2);
   background: rgb(41 189 226 / 0.1);
-}
-
-.dark .toolbar-kicker {
-  color: rgb(152 236 255 / 0.68);
 }
 
 .dark .toolbar-copy h2 {

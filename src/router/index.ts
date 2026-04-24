@@ -182,7 +182,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/settings/index.vue'),
     meta: {
       title: '设置',
-      subtitle: 'ATRI',
       description: '管理账户、角色、模块、场景和系统偏好。',
       icon: 'i-solar:settings-bold-duotone',
     },
