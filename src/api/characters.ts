@@ -1,5 +1,11 @@
 import client from './client'
-import type { CharacterResponse, CharacterDetailResponse } from './types'
+import type {
+  AvatarUploadResponse,
+  CharacterCreateRequest,
+  CharacterDetailResponse,
+  CharacterResponse,
+  CharacterUpdateRequest,
+} from './types'
 
 export const charactersApi = {
   /**
@@ -14,7 +20,54 @@ export const charactersApi = {
    * 获取角色详情
    */
   async getDetail(characterId: string): Promise<CharacterDetailResponse> {
-    const { data } = await client.get<CharacterDetailResponse>(`/api/characters/${characterId}`)
+    const { data } = await client.get<CharacterDetailResponse>(
+      `/api/characters/${encodeURIComponent(characterId)}`
+    )
+    return data
+  },
+
+  /**
+   * 创建角色
+   */
+  async create(payload: CharacterCreateRequest): Promise<CharacterDetailResponse> {
+    const { data } = await client.post<CharacterDetailResponse>('/api/characters', payload)
+    return data
+  },
+
+  /**
+   * 更新角色
+   */
+  async update(characterId: string, payload: CharacterUpdateRequest): Promise<CharacterDetailResponse> {
+    const { data } = await client.put<CharacterDetailResponse>(
+      `/api/characters/${encodeURIComponent(characterId)}`,
+      payload
+    )
+    return data
+  },
+
+  /**
+   * 删除角色
+   */
+  async remove(characterId: string): Promise<void> {
+    await client.delete(`/api/characters/${encodeURIComponent(characterId)}`)
+  },
+
+  /**
+   * 上传头像
+   */
+  async uploadAvatar(characterId: string, file: File): Promise<AvatarUploadResponse> {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    const { data } = await client.post<AvatarUploadResponse>(
+      `/api/characters/${encodeURIComponent(characterId)}/avatar`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
     return data
   }
 }

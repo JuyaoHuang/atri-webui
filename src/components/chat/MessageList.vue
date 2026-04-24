@@ -1,12 +1,31 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useChat } from '@/composables/useChat'
+import { useChatStore } from '@/stores/chat'
+import { useChatsStore } from '@/stores/chats'
 
 import MessageItem from './MessageItem.vue'
 
 const { messages, streamingText, isStreaming } = useChat()
+const chatStore = useChatStore()
+const chatsStore = useChatsStore()
 const messageListRef = ref<HTMLElement | null>(null)
+const emptyStateText = computed(() => {
+  if (!chatStore.currentCharacterId) {
+    return '请选择一个角色开始对话。'
+  }
+
+  if (!chatStore.currentChatId && chatsStore.chatList.length > 0) {
+    return '当前是新的空白会话，发送第一条消息后将自动创建聊天。'
+  }
+
+  if (!chatStore.currentChatId) {
+    return '当前角色还没有聊天记录，发送第一条消息后将自动创建会话。'
+  }
+
+  return '开始对话吧。'
+})
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -24,7 +43,7 @@ watch([messages, streamingText], () => {
 <template>
   <div ref="messageListRef" class="message-list flex-1 overflow-y-auto p-6 space-y-4">
     <div v-if="messages.length === 0 && !isStreaming" class="empty-state mt-20 text-center">
-      <p class="text-lg">开始对话吧。</p>
+      <p class="text-lg">{{ emptyStateText }}</p>
     </div>
 
     <MessageItem v-for="message in messages" :key="message.id" :message="message" />

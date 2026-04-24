@@ -8,12 +8,27 @@ import { useChatsStore } from '@/stores/chats'
 const chatsStore = useChatsStore()
 const charactersStore = useCharactersStore()
 const chatStore = useChatStore()
+let fetchToken = 0
 
 watch(
   () => charactersStore.activeCharacterId,
-  (characterId) => {
+  async (characterId) => {
     if (characterId) {
-      chatsStore.fetchChats(characterId)
+      const token = ++fetchToken
+      chatStore.prepareNewChat(characterId)
+      const chats = await chatsStore.fetchChats(characterId)
+
+      if (token !== fetchToken) {
+        return
+      }
+
+      if (chats.length > 0) {
+        chatStore.setCurrentChat(chats[0].id, characterId)
+      }
+    }
+    else {
+      chatStore.setCurrentCharacter(null)
+      chatStore.clearMessages()
     }
   },
   { immediate: true },
@@ -32,21 +47,7 @@ const handleCreateChat = async () => {
     return
   }
 
-  const firstMessage = prompt('请输入首条消息：')
-  if (!firstMessage || !firstMessage.trim()) {
-    return
-  }
-
-  try {
-    const newChat = await chatsStore.createChat(characterId, firstMessage.trim())
-    if (newChat) {
-      chatStore.setCurrentChat(newChat.id, characterId)
-    }
-  }
-  catch (error) {
-    console.error('创建聊天失败:', error)
-    alert('创建聊天失败，请重试')
-  }
+  chatStore.prepareNewChat(characterId)
 }
 
 const handleSelectChat = (chatId: string) => {
@@ -58,6 +59,7 @@ const handleSelectChat = (chatId: string) => {
 
 const handleDeleteChat = async (chatId: string, event: Event) => {
   event.stopPropagation()
+  const characterId = charactersStore.activeCharacterId || chatStore.currentCharacterId
 
   if (!confirm('确定要删除这个聊天吗？')) {
     return
@@ -66,8 +68,15 @@ const handleDeleteChat = async (chatId: string, event: Event) => {
   try {
     await chatsStore.deleteChat(chatId)
     if (chatStore.currentChatId === chatId) {
-      chatStore.clearMessages()
-      chatStore.currentChatId = null
+      const nextChat = sortedChats.value.find(chat => chat.id !== chatId)
+      if (nextChat && characterId) {
+        chatStore.setCurrentChat(nextChat.id, characterId)
+      } else if (characterId) {
+        chatStore.prepareNewChat(characterId)
+      } else {
+        chatStore.clearMessages()
+        chatStore.currentChatId = null
+      }
     }
   }
   catch (error) {

@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import type { Chat } from '@/types/chat'
 import { chatsApi } from '@/api/chats'
+import { createTemporaryChatTitle } from '@/utils/chatTitle'
+
+const deferredTitleTimers = new Map<string, number>()
 
 export interface ChatsState {
   chatList: Chat[]
@@ -21,23 +24,33 @@ export const useChatsStore = defineStore('chats', {
       try {
         const response = await chatsApi.list(characterId ? { character_id: characterId } : {})
         this.chatList = response
+        return response
       } catch (error) {
         console.error('获取聊天列表失败:', error)
         this.chatList = []
+        return []
       } finally {
         this.loading = false
       }
     },
 
-    async createChat(characterId: string, firstMessage: string) {
+    async createChat(
+      characterId: string,
+      firstMessage: string,
+      deferTitle = false,
+      options?: { insertIntoList?: boolean }
+    ) {
       try {
         const response = await chatsApi.create({
           character_id: characterId,
-          first_message: firstMessage
+          first_message: firstMessage,
+          defer_title: deferTitle
         })
 
-        // 添加到列表
-        this.chatList.unshift(response)
+        if (options?.insertIntoList !== false) {
+          // 添加到列表
+          this.chatList.unshift(response)
+        }
 
         return response
       } catch (error) {
@@ -46,8 +59,97 @@ export const useChatsStore = defineStore('chats', {
       }
     },
 
+    insertDraftChat(characterId: string, firstMessage: string) {
+      const now = new Date().toISOString()
+      const draftChat: Chat = {
+        id: `draft_${Date.now()}`,
+        character_id: characterId,
+        title: createTemporaryChatTitle(firstMessage),
+        created_at: now,
+        updated_at: now
+      }
+
+      this.chatList = [draftChat, ...this.chatList.filter(chat => chat.id !== draftChat.id)]
+      return draftChat
+    },
+
+    replaceDraftChat(draftChatId: string, nextChat: Chat) {
+      const index = this.chatList.findIndex(chat => chat.id === draftChatId)
+      if (index >= 0) {
+        this.chatList.splice(index, 1, nextChat)
+        return
+      }
+
+      const existingIndex = this.chatList.findIndex(chat => chat.id === nextChat.id)
+      if (existingIndex >= 0) {
+        this.chatList.splice(existingIndex, 1, nextChat)
+        return
+      }
+
+      this.chatList.unshift(nextChat)
+    },
+
+    removeDraftChat(draftChatId: string) {
+      this.chatList = this.chatList.filter(chat => chat.id !== draftChatId)
+    },
+
+    mergeChat(nextChat: Chat) {
+      const index = this.chatList.findIndex(chat => chat.id === nextChat.id)
+      if (index >= 0) {
+        this.chatList.splice(index, 1, nextChat)
+        return
+      }
+
+      this.chatList.unshift(nextChat)
+    },
+
+    watchDeferredTitle(chatId: string, characterId: string, temporaryTitle: string) {
+      const existingTimer = deferredTitleTimers.get(chatId)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+      }
+
+      let attempts = 0
+      const maxAttempts = 20
+      const poll = async () => {
+        attempts += 1
+
+        try {
+          const chats = await chatsApi.list({ character_id: characterId })
+          const matchedChat = chats.find(chat => chat.id === chatId)
+          if (matchedChat) {
+            this.mergeChat(matchedChat)
+
+            if (matchedChat.title !== temporaryTitle) {
+              deferredTitleTimers.delete(chatId)
+              return
+            }
+          }
+        } catch (error) {
+          console.error('轮询聊天标题失败:', error)
+        }
+
+        if (attempts >= maxAttempts) {
+          deferredTitleTimers.delete(chatId)
+          return
+        }
+
+        const timer = window.setTimeout(() => {
+          void poll()
+        }, 500)
+        deferredTitleTimers.set(chatId, timer)
+      }
+
+      void poll()
+    },
+
     async deleteChat(chatId: string) {
       try {
+        const timer = deferredTitleTimers.get(chatId)
+        if (timer) {
+          clearTimeout(timer)
+          deferredTitleTimers.delete(chatId)
+        }
         await chatsApi.delete(chatId)
 
         // 从列表中移除

@@ -7,6 +7,9 @@ export interface ChatState {
   messages: Message[]
   isStreaming: boolean
   streamingText: string
+  skipNextHistoryLoadChatId: string | null
+  pendingDeferredTitleChatId: string | null
+  draftChatId: string | null
 }
 
 export const useChatStore = defineStore('chat', {
@@ -15,13 +18,82 @@ export const useChatStore = defineStore('chat', {
     currentCharacterId: null,
     messages: [],
     isStreaming: false,
-    streamingText: ''
+    streamingText: '',
+    skipNextHistoryLoadChatId: null,
+    pendingDeferredTitleChatId: null,
+    draftChatId: null
   }),
 
   actions: {
+    setCurrentCharacter(characterId: string | null) {
+      this.currentCharacterId = characterId
+    },
+
     setCurrentChat(chatId: string, characterId: string) {
       this.currentChatId = chatId
       this.currentCharacterId = characterId
+      this.draftChatId = chatId.startsWith('draft_') ? chatId : null
+    },
+
+    prepareNewChat(characterId: string) {
+      this.currentChatId = null
+      this.currentCharacterId = characterId
+      this.draftChatId = null
+      this.clearMessages()
+    },
+
+    beginDraftChat(chatId: string, characterId: string) {
+      this.currentChatId = chatId
+      this.currentCharacterId = characterId
+      this.draftChatId = chatId
+      this.clearMessages()
+    },
+
+    markSkipNextHistoryLoad(chatId: string) {
+      this.skipNextHistoryLoadChatId = chatId
+    },
+
+    consumeSkipNextHistoryLoad(chatId: string) {
+      if (this.skipNextHistoryLoadChatId === chatId) {
+        this.skipNextHistoryLoadChatId = null
+        return true
+      }
+
+      return false
+    },
+
+    markPendingDeferredTitle(chatId: string) {
+      this.pendingDeferredTitleChatId = chatId
+    },
+
+    consumePendingDeferredTitle(chatId: string) {
+      if (this.pendingDeferredTitleChatId === chatId) {
+        this.pendingDeferredTitleChatId = null
+        return true
+      }
+
+      return false
+    },
+
+    replaceCurrentChatId(previousChatId: string, nextChatId: string) {
+      if (this.currentChatId === previousChatId) {
+        this.currentChatId = nextChatId
+      }
+
+      if (this.draftChatId === previousChatId) {
+        this.draftChatId = null
+      }
+
+      this.messages = this.messages.map(message => {
+        if (message.chat_id !== previousChatId) {
+          return message
+        }
+
+        return {
+          ...message,
+          chat_id: nextChatId
+        }
+      })
     },
 
     addMessage(message: Message) {

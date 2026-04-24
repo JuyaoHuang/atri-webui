@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 
 import { useCharactersStore } from '@/stores/characters'
+import { resolveAvatarUrl } from '@/utils/avatar'
 
 const charactersStore = useCharactersStore()
 
@@ -11,6 +12,10 @@ onMounted(() => {
 
 const handleSelectCharacter = (characterId: string) => {
   charactersStore.setActiveCharacter(characterId)
+}
+
+const getAvatarSrc = (avatar?: string, avatarUrl?: string) => {
+  return resolveAvatarUrl(avatar, avatarUrl)
 }
 </script>
 
@@ -30,8 +35,8 @@ const handleSelectCharacter = (characterId: string) => {
       >
         <div class="character-avatar w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
           <img
-            v-if="character.avatar"
-            :src="`/avatars/${character.avatar}`"
+            v-if="getAvatarSrc(character.avatar, character.avatarUrl)"
+            :src="getAvatarSrc(character.avatar, character.avatarUrl)!"
             :alt="character.name"
             class="w-full h-full object-cover"
           />

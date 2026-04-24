@@ -5,11 +5,37 @@ export interface CharacterResponse {
   character_id: string
   name: string
   avatar: string | null
+  avatar_url?: string | null
   greeting: string | null
+  description?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  is_system?: boolean
 }
 
 export interface CharacterDetailResponse extends CharacterResponse {
   system_prompt: string
+}
+
+export interface CharacterCreateRequest {
+  character_id?: string
+  name: string
+  greeting?: string
+  description?: string
+  system_prompt: string
+}
+
+export interface CharacterUpdateRequest {
+  name?: string
+  greeting?: string
+  description?: string
+  system_prompt?: string
+}
+
+export interface AvatarUploadResponse {
+  character_id: string
+  avatar: string
+  avatar_url: string
 }
 
 // 聊天相关
@@ -29,6 +55,7 @@ export interface ChatResponse {
 export interface CreateChatRequest {
   character_id: string
   first_message: string
+  defer_title?: boolean
   user_id?: string
 }
 
