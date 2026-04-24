@@ -111,14 +111,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'models',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/models.vue'),
     meta: createSettingsMeta({
       order: 8,
-      title: '模型管理',
-      description: '整理模型列表、分组和默认使用策略。',
+      title: '角色模型',
+      description: '启用 Live2D 舞台、管理模型资源，并调整模型在主页中的位置与尺寸。',
       icon: 'i-solar:database-bold-duotone',
       phase: 'Phase 8',
-      status: 'developing',
+      status: 'active',
     }),
   },
   {
@@ -182,7 +182,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/settings/index.vue'),
     meta: {
       title: '设置',
-      subtitle: 'ATRI',
       description: '管理账户、角色、模块、场景和系统偏好。',
       icon: 'i-solar:settings-bold-duotone',
     },

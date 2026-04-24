@@ -3,6 +3,14 @@ import { ref } from 'vue'
 
 import { useChat } from '@/composables/useChat'
 
+interface Props {
+  variant?: 'default' | 'stage'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'default'
+})
+
 const { sendMessage, isStreaming } = useChat()
 const inputText = ref('')
 
@@ -26,16 +34,18 @@ const handleKeydown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="input-box h-32 p-4 flex gap-3">
+  <div class="input-box h-32 p-4 flex gap-3" :class="{ 'stage-input-box': props.variant === 'stage' }">
     <textarea
       v-model="inputText"
       class="chat-input flex-1 rounded-t-xl p-4 resize-none focus:outline-none"
+      :class="{ 'stage-chat-input': props.variant === 'stage' }"
       placeholder="说点什么..."
       :disabled="isStreaming"
       @keydown="handleKeydown"
     />
     <button
       class="send-button px-5 py-2 rounded-xl transition-colors font-medium"
+      :class="{ 'stage-send-button': props.variant === 'stage' }"
       :disabled="!inputText.trim() || isStreaming"
       @click="() => void handleSend()"
     >
@@ -51,6 +61,12 @@ const handleKeydown = (event: KeyboardEvent) => {
   -webkit-backdrop-filter: blur(12px);
 }
 
+.stage-input-box {
+  height: 10rem;
+  padding: 0.85rem 1rem 1rem;
+  background: linear-gradient(180deg, rgb(152 236 255 / 0.12), rgb(152 236 255 / 0.24));
+}
+
 .chat-input {
   min-height: 100%;
   border: 0;
@@ -64,11 +80,22 @@ const handleKeydown = (event: KeyboardEvent) => {
   color: #0098c4;
 }
 
+.stage-chat-input {
+  padding: 1rem 0.85rem;
+  border-radius: 1rem;
+}
+
 .send-button {
   align-self: flex-end;
   background: rgb(240 252 255 / 0.88);
   border: 1px solid rgb(152 236 255 / 0.55);
   color: #0081b3;
+}
+
+.stage-send-button {
+  min-width: 6.25rem;
+  border-radius: 999px;
+  padding-inline: 1.2rem;
 }
 
 .send-button:hover {
@@ -84,6 +111,10 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 .dark .input-box {
   background: rgb(41 189 226 / 0.2);
+}
+
+.dark .stage-input-box {
+  background: linear-gradient(180deg, rgb(41 189 226 / 0.1), rgb(41 189 226 / 0.18));
 }
 
 .dark .chat-input {

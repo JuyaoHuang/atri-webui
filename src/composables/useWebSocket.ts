@@ -2,12 +2,15 @@ import { computed } from 'vue'
 import { useWebSocketStore } from '@/stores/websocket'
 import { useChatStore } from '@/stores/chat'
 import { useCharactersStore } from '@/stores/characters'
+import { useLive2dStore } from '@/stores/live2d'
+import { extractLive2dExpression } from '@/utils/live2dExpression'
 import { WebSocketManager } from '@/utils/websocket'
 
 export function useWebSocket() {
   const wsStore = useWebSocketStore()
   const chatStore = useChatStore()
   const charactersStore = useCharactersStore()
+  const live2dStore = useLive2dStore()
 
   const connect = () => {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8430/ws'
@@ -37,6 +40,7 @@ export function useWebSocket() {
 
     wsManager.on('chat:complete', (data: unknown) => {
       const completeData = data as { full_reply?: string; character_id?: string; chat_id?: string }
+      const parsed = extractLive2dExpression(completeData.full_reply || '')
 
       // 获取角色信息
       let characterName: string | undefined
@@ -49,7 +53,11 @@ export function useWebSocket() {
         }
       }
 
-      chatStore.completeStreaming(completeData.full_reply || '', characterName, characterAvatar)
+      if (parsed.expression) {
+        live2dStore.requestExpression(parsed.expression)
+      }
+
+      chatStore.completeStreaming(parsed.content || '', characterName, characterAvatar)
 
       if (completeData.chat_id) {
         chatStore.consumePendingDeferredTitle(completeData.chat_id)

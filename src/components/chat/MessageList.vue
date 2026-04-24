@@ -7,6 +7,14 @@ import { useChatsStore } from '@/stores/chats'
 
 import MessageItem from './MessageItem.vue'
 
+interface Props {
+  variant?: 'default' | 'stage'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'default'
+})
+
 const { messages, streamingText, isStreaming } = useChat()
 const chatStore = useChatStore()
 const chatsStore = useChatsStore()
@@ -41,15 +49,32 @@ watch([messages, streamingText], () => {
 </script>
 
 <template>
-  <div ref="messageListRef" class="message-list flex-1 overflow-y-auto p-6 space-y-4">
-    <div v-if="messages.length === 0 && !isStreaming" class="empty-state mt-20 text-center">
+  <div
+    ref="messageListRef"
+    class="message-list flex-1 overflow-y-auto p-6 space-y-4"
+    :class="{ 'stage-message-list': props.variant === 'stage' }"
+  >
+    <div
+      v-if="messages.length === 0 && !isStreaming"
+      class="empty-state mt-20 text-center"
+      :class="{ 'stage-empty-state': props.variant === 'stage' }"
+    >
       <p class="text-lg">{{ emptyStateText }}</p>
     </div>
 
-    <MessageItem v-for="message in messages" :key="message.id" :message="message" />
+    <MessageItem
+      v-for="message in messages"
+      :key="message.id"
+      :message="message"
+      :variant="props.variant"
+    />
 
-    <div v-if="isStreaming && streamingText" class="streaming-message">
-      <div class="streaming-content">
+    <div
+      v-if="isStreaming && streamingText"
+      class="streaming-message"
+      :class="{ 'stage-streaming-message': props.variant === 'stage' }"
+    >
+      <div class="streaming-content" :class="{ 'stage-streaming-content': props.variant === 'stage' }">
         <div class="streaming-header">
           <span class="streaming-role">AI</span>
           <span class="streaming-time">正在输入...</span>
@@ -65,8 +90,17 @@ watch([messages, streamingText], () => {
   scroll-behavior: smooth;
 }
 
+.stage-message-list {
+  padding: 1.2rem 1.2rem 1rem;
+}
+
 .empty-state {
   color: rgb(0 0 0 / 0.45);
+}
+
+.stage-empty-state {
+  margin-top: 2rem;
+  text-align: left;
 }
 
 .streaming-message {
@@ -107,6 +141,11 @@ watch([messages, streamingText], () => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.stage-streaming-content {
+  max-width: 82%;
+  border-radius: 1rem;
 }
 
 .dark .empty-state {

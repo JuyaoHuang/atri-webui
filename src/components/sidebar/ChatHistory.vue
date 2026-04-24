@@ -14,6 +14,10 @@ watch(
   () => charactersStore.activeCharacterId,
   async (characterId) => {
     if (characterId) {
+      if (chatStore.currentCharacterId === characterId && chatsStore.chatList.length > 0) {
+        return
+      }
+
       const token = ++fetchToken
       chatStore.prepareNewChat(characterId)
       const chats = await chatsStore.fetchChats(characterId)
