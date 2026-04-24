@@ -50,7 +50,7 @@ export function useChat() {
         let avatar: string | undefined
         if (msg.role === 'ai' && msg.name) {
           const character = charactersStore.characters.find((c) => c.id === msg.name)
-          avatar = character?.avatar
+          avatar = character?.avatarUrl || character?.avatar
         }
 
         return {

@@ -39,14 +39,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'airi-card',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/airi-card.vue'),
     meta: createSettingsMeta({
       order: 2,
       title: '角色卡管理',
-      description: '配置角色卡、默认人格与展示资料。',
+      description: '创建、编辑、导入导出角色卡，并管理角色头像与提示词。',
       icon: 'i-solar:card-bold-duotone',
       phase: 'Phase 7',
-      status: 'developing',
+      status: 'active',
     }),
   },
   {

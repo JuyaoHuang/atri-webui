@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import { useUserStore } from '@/stores/user'
 import type { Message } from '@/types/message'
+import { resolveAvatarUrl } from '@/utils/avatar'
 
 interface Props {
   message: Message
@@ -29,7 +30,7 @@ const avatarSrc = computed(() => {
     return `/avatars/${userStore.settings.avatar}`
   }
 
-  return props.message.avatar ? `/avatars/${props.message.avatar}` : null
+  return resolveAvatarUrl(props.message.avatar)
 })
 </script>
 

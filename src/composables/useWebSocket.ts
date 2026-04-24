@@ -45,7 +45,7 @@ export function useWebSocket() {
         const character = charactersStore.characters.find((c) => c.id === completeData.character_id)
         if (character) {
           characterName = character.name
-          characterAvatar = character.avatar
+          characterAvatar = character.avatarUrl || character.avatar
         }
       }
 
