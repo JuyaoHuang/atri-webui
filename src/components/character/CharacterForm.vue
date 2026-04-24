@@ -33,6 +33,19 @@ const avatarFile = ref<File | null>(null)
 const avatarPreview = ref<string | null>(null)
 
 const isEditMode = computed(() => props.mode === 'edit')
+const customNamePattern = /^[\p{L}\p{N}]+$/u
+const hasValidName = computed(() => customNamePattern.test(name.value.trim()))
+const nameHint = computed(() => {
+  if (!name.value.trim()) {
+    return '角色名会直接作为 CUSTOM 角色的 persona 文件名。'
+  }
+
+  if (hasValidName.value) {
+    return '允许任意语言的字母和数字。'
+  }
+
+  return '角色名仅允许字母和数字，不能包含空格、标点或特殊符号。'
+})
 const currentAvatar = computed(() => {
   return avatarPreview.value
     || resolveAvatarUrl(props.initialCharacter?.avatar, props.initialCharacter?.avatarUrl)
@@ -135,9 +148,20 @@ const handleSubmit = () => {
             v-model="name"
             type="text"
             maxlength="50"
-            class="rounded-xl border border-neutral-200 bg-white/75 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#0081b3]/40 dark:border-neutral-700 dark:bg-[#031821]/88 dark:text-neutral-100"
-            placeholder="例如：亚托莉·雨后版"
+            class="rounded-xl border bg-white/75 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#0081b3]/40 dark:bg-[#031821]/88 dark:text-neutral-100"
+            :class="hasValidName || !name.trim()
+              ? 'border-neutral-200 dark:border-neutral-700'
+              : 'border-rose-300 text-rose-600 focus:border-rose-400 dark:border-rose-400/60 dark:text-rose-300'"
+            placeholder="例如：测试 / Atri2"
           >
+          <span
+            class="text-xs"
+            :class="hasValidName || !name.trim()
+              ? 'text-[#0071a0]/62 dark:text-[#98ecff]/64'
+              : 'text-rose-500 dark:text-rose-300'"
+          >
+            {{ nameHint }}
+          </span>
         </label>
 
         <label class="flex flex-col gap-2">
@@ -187,7 +211,7 @@ const handleSubmit = () => {
       </button>
       <button
         class="rounded-xl bg-[#0081b3] px-4 py-2 text-sm text-white shadow-[0_14px_32px_rgba(0,129,179,0.22)] transition hover:bg-[#0071a0] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#c5fcff] dark:text-[#063a49] dark:hover:bg-[#d8fbff]"
-        :disabled="submitting || !name.trim() || !systemPrompt.trim()"
+        :disabled="submitting || !name.trim() || !systemPrompt.trim() || !hasValidName"
         @click="handleSubmit"
       >
         {{ submitting ? '保存中...' : isEditMode ? '保存修改' : '创建角色' }}

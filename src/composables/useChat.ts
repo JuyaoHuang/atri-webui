@@ -1,38 +1,82 @@
 import { computed } from 'vue'
-import { useChatStore } from '@/stores/chat'
-import { useWebSocketStore } from '@/stores/websocket'
+import { toast } from 'vue-sonner'
+
 import { useCharactersStore } from '@/stores/characters'
+import { useChatStore } from '@/stores/chat'
+import { useChatsStore } from '@/stores/chats'
+import { useWebSocketStore } from '@/stores/websocket'
 import { chatsApi } from '@/api/chats'
 
 export function useChat() {
   const chatStore = useChatStore()
+  const chatsStore = useChatsStore()
   const wsStore = useWebSocketStore()
   const charactersStore = useCharactersStore()
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return
 
-    const { currentChatId, currentCharacterId } = chatStore
+    const messageText = text.trim()
+    const currentCharacterId = charactersStore.activeCharacterId || chatStore.currentCharacterId
+    let currentChatId = chatStore.currentChatId
+    let isDraftChat = false
 
     if (!currentCharacterId) {
       console.error('No character selected')
-      return
+      toast.error('当前没有可用角色，无法发送消息')
+      return false
     }
 
-    // 添加用户消息到本地状态
-    chatStore.addMessage({
-      id: `msg_${Date.now()}`,
-      chat_id: currentChatId || '',
-      role: 'human',
-      content: text,
-      timestamp: new Date().toISOString()
-    })
+    if (!currentChatId) {
+      const draftChat = chatsStore.insertDraftChat(currentCharacterId, messageText)
+      currentChatId = draftChat.id
+      isDraftChat = true
+      chatStore.beginDraftChat(draftChat.id, currentCharacterId)
+
+      chatStore.addMessage({
+        id: `msg_${Date.now()}`,
+        chat_id: currentChatId,
+        role: 'human',
+        content: messageText,
+        timestamp: new Date().toISOString()
+      })
+
+      try {
+        const newChat = await chatsStore.createChat(currentCharacterId, messageText, true, {
+          insertIntoList: false
+        })
+        chatsStore.replaceDraftChat(draftChat.id, newChat)
+        chatStore.markSkipNextHistoryLoad(newChat.id)
+        chatStore.markPendingDeferredTitle(newChat.id)
+        chatStore.replaceCurrentChatId(draftChat.id, newChat.id)
+        chatStore.setCurrentCharacter(currentCharacterId)
+        chatsStore.watchDeferredTitle(newChat.id, currentCharacterId, draftChat.title)
+        currentChatId = newChat.id
+      } catch (error) {
+        console.error('自动创建聊天失败:', error)
+        chatsStore.removeDraftChat(draftChat.id)
+        chatStore.prepareNewChat(currentCharacterId)
+        toast.error('自动创建聊天失败，请检查后端服务是否已重启')
+        return false
+      }
+    }
+
+    if (!isDraftChat) {
+      // 添加用户消息到本地状态
+      chatStore.addMessage({
+        id: `msg_${Date.now()}`,
+        chat_id: currentChatId,
+        role: 'human',
+        content: messageText,
+        timestamp: new Date().toISOString()
+      })
+    }
 
     // 通过 WebSocket 发送
     wsStore.send({
       type: 'input:text',
       data: {
-        text,
+        text: messageText,
         chat_id: currentChatId,
         character_id: currentCharacterId
       }
@@ -40,6 +84,7 @@ export function useChat() {
 
     // 标记为流式输出中
     chatStore.isStreaming = true
+    return true
   }
 
   const loadHistory = async (chatId: string) => {

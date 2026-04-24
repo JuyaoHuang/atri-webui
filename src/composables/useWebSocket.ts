@@ -36,7 +36,7 @@ export function useWebSocket() {
     })
 
     wsManager.on('chat:complete', (data: unknown) => {
-      const completeData = data as { full_reply?: string; character_id?: string }
+      const completeData = data as { full_reply?: string; character_id?: string; chat_id?: string }
 
       // 获取角色信息
       let characterName: string | undefined
@@ -50,6 +50,10 @@ export function useWebSocket() {
       }
 
       chatStore.completeStreaming(completeData.full_reply || '', characterName, characterAvatar)
+
+      if (completeData.chat_id) {
+        chatStore.consumePendingDeferredTitle(completeData.chat_id)
+      }
     })
 
     wsManager.on('chat:error', (data: unknown) => {

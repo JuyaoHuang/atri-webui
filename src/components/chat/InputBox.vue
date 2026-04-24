@@ -6,19 +6,21 @@ import { useChat } from '@/composables/useChat'
 const { sendMessage, isStreaming } = useChat()
 const inputText = ref('')
 
-const handleSend = () => {
+const handleSend = async () => {
   if (!inputText.value.trim() || isStreaming.value) {
     return
   }
 
-  sendMessage(inputText.value.trim())
-  inputText.value = ''
+  const sent = await sendMessage(inputText.value.trim())
+  if (sent) {
+    inputText.value = ''
+  }
 }
 
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
-    handleSend()
+    void handleSend()
   }
 }
 </script>
@@ -35,7 +37,7 @@ const handleKeydown = (event: KeyboardEvent) => {
     <button
       class="send-button px-5 py-2 rounded-xl transition-colors font-medium"
       :disabled="!inputText.trim() || isStreaming"
-      @click="handleSend"
+      @click="() => void handleSend()"
     >
       {{ isStreaming ? '发送中...' : '发送' }}
     </button>

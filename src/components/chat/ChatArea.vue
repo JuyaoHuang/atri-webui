@@ -20,6 +20,12 @@ watch(
   () => chatStore.currentChatId,
   (chatId) => {
     if (chatId) {
+      if (chatId.startsWith('draft_')) {
+        return
+      }
+      if (chatStore.consumeSkipNextHistoryLoad(chatId)) {
+        return
+      }
       loadHistory(chatId)
     }
     else {

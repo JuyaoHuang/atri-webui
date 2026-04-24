@@ -55,6 +55,7 @@ export interface ChatResponse {
 export interface CreateChatRequest {
   character_id: string
   first_message: string
+  defer_title?: boolean
   user_id?: string
 }
 
