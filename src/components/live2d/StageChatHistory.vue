@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useChat } from '@/composables/useChat'
 import { useChatHistoryScroll } from '@/composables/useChatHistoryScroll'
@@ -44,6 +44,26 @@ useChatHistoryScroll({
   messages: renderMessages,
   getKey: getChatHistoryItemKey
 })
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (!chatHistoryRef.value) {
+      return
+    }
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+  })
+}
+
+watch(
+  () => [chatStore.currentChatId, renderMessages.value.length],
+  ([chatId, messageCount]) => {
+    if (!chatId || messageCount === 0) {
+      return
+    }
+    scrollToBottom()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

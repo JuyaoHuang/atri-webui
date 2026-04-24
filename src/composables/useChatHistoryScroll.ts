@@ -136,7 +136,7 @@ export function useChatHistoryScroll<TMessage extends ScrollableChatMessage>({
 
       if (previousTailKey == null) {
         pendingScrollKey.value = null
-        pendingStreamingFollow.value = false
+        pendingStreamingFollow.value = currentMessages.length > 0
         return
       }
 
