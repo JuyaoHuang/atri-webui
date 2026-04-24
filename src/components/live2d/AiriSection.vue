@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 const props = withDefaults(defineProps<{
   title: string
-  sectionIcon: string
+  iconClass: string
   innerClass?: string
   expand?: boolean
   size?: 'sm' | 'md'
@@ -23,7 +23,7 @@ const visible = ref(props.expand)
       @click="visible = !visible"
     >
       <div class="airi-section-trigger__left">
-        <div :class="[sectionIcon, props.size === 'sm' ? 'size-4' : 'size-6']" />
+        <div :class="[iconClass, props.size === 'sm' ? 'size-4' : 'size-6']" />
         <span>{{ title }}</span>
       </div>
       <div

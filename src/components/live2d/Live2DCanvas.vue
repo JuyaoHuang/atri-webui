@@ -4,32 +4,47 @@ import { extensions } from '@pixi/extensions'
 import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
+import { FileLoader, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 
-import type { Live2DExpressionRequest, Live2DPosition } from '@/types/live2d'
+import type {
+  Live2DExpressionRequest,
+  Live2DMotion,
+  Live2DMotionSelection,
+  Live2DPosition,
+} from '@/types/live2d'
 import type { Live2DModelParameters } from '@/stores/live2d'
+import { loadLive2dFilesWithOpfs } from '@/utils/live2dOpfs'
 
 interface Props {
+  modelId?: string | null
+  modelPath?: string | null
   modelUrl?: string | null
   position?: Live2DPosition
   scale?: number
   expressionRequest?: Live2DExpressionRequest | null
+  currentMotion?: Live2DMotionSelection | null
   modelParameters?: Live2DModelParameters
   focusAt?: { x: number, y: number }
   disableFocus?: boolean
+  idleAnimationEnabled?: boolean
+  expressionSystemEnabled?: boolean
   autoBlinkEnabled?: boolean
   forceAutoBlinkEnabled?: boolean
   shadowEnabled?: boolean
   maxFps?: number
   resolution?: number
+  modelCacheVersion?: number
   emptyText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  modelId: null,
+  modelPath: null,
   modelUrl: null,
   position: () => ({ x: 0, y: 0 }),
   scale: 1,
   expressionRequest: null,
+  currentMotion: null,
   modelParameters: () => ({
     angleX: 0,
     angleY: 0,
@@ -52,21 +67,25 @@ const props = withDefaults(defineProps<Props>(), {
     bodyAngleX: 0,
     bodyAngleY: 0,
     bodyAngleZ: 0,
-    breath: 0
+    breath: 0,
   }),
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocus: false,
+  idleAnimationEnabled: true,
+  expressionSystemEnabled: true,
   autoBlinkEnabled: true,
   forceAutoBlinkEnabled: false,
   shadowEnabled: true,
   maxFps: 60,
   resolution: 2,
-  emptyText: '当前没有可渲染的 Live2D 模型。'
+  modelCacheVersion: 0,
+  emptyText: 'No current model.',
 })
 
 const emit = defineEmits<{
   error: [message: string]
   loaded: []
+  motionsLoaded: [motions: Live2DMotion[]]
 }>()
 
 let pixiExtensionsRegistered = false
@@ -74,7 +93,6 @@ let pixiExtensionsRegistered = false
 const containerRef = ref<HTMLDivElement | null>(null)
 const app = ref<Application | null>(null)
 const model = ref<Live2DModel | null>(null)
-const canvasReady = ref(false)
 const width = ref(0)
 const height = ref(0)
 const initialModelWidth = ref(1)
@@ -82,8 +100,23 @@ const initialModelHeight = ref(1)
 let resizeObserver: ResizeObserver | null = null
 let blinkTimer: number | null = null
 let blinkResetTimer: number | null = null
+let removeMotionFinishListener: (() => void) | null = null
 
-const hasModel = computed(() => Boolean(props.modelUrl))
+const resolvedModelUrl = computed(() => {
+  if (!props.modelUrl) {
+    return null
+  }
+
+  if (!props.modelCacheVersion) {
+    return props.modelUrl
+  }
+
+  const url = new URL(props.modelUrl, window.location.origin)
+  url.searchParams.set('_live2d', String(props.modelCacheVersion))
+  return url.toString()
+})
+
+const hasModel = computed(() => Boolean(resolvedModelUrl.value))
 
 const resolveMaxFps = (value: number) => {
   if (!value || value <= 0) {
@@ -117,7 +150,7 @@ const createPixiApp = async () => {
     backgroundAlpha: 0,
     preserveDrawingBuffer: true,
     autoDensity: false,
-    resolution: 1
+    resolution: 1,
   })
 
   nextApp.ticker.maxFPS = resolveMaxFps(props.maxFps)
@@ -129,21 +162,43 @@ const createPixiApp = async () => {
 
   containerRef.value.appendChild(nextApp.view)
   app.value = nextApp
-  canvasReady.value = true
+}
+
+const clearMotionFinishListener = () => {
+  removeMotionFinishListener?.()
+  removeMotionFinishListener = null
 }
 
 const destroyModel = () => {
+  clearMotionFinishListener()
+
   if (!model.value || !app.value) {
+    emit('motionsLoaded', [])
     return
   }
 
   try {
     app.value.stage.removeChild(model.value as never)
     model.value.destroy()
-  } catch (error) {
+  }
+  catch (error) {
     console.warn('卸载 Live2D 模型失败:', error)
-  } finally {
+  }
+  finally {
     model.value = null
+    emit('motionsLoaded', [])
+  }
+}
+
+const stopBlinkLoop = () => {
+  if (blinkTimer != null) {
+    window.clearTimeout(blinkTimer)
+    blinkTimer = null
+  }
+
+  if (blinkResetTimer != null) {
+    window.clearTimeout(blinkResetTimer)
+    blinkResetTimer = null
   }
 }
 
@@ -153,14 +208,13 @@ const destroyPixi = () => {
     app.value.destroy(true)
     app.value = null
   }
-  canvasReady.value = false
   stopBlinkLoop()
 }
 
 const computeScaleAndPosition = () => {
   let resolvedScale = Math.min(
     (height.value * 0.95 * 2.2) / initialModelHeight.value,
-    (width.value * 0.95 * 2.2) / initialModelWidth.value
+    (width.value * 0.95 * 2.2) / initialModelWidth.value,
   ) * props.scale
 
   if (Number.isNaN(resolvedScale) || resolvedScale <= 0) {
@@ -170,7 +224,7 @@ const computeScaleAndPosition = () => {
   return {
     scale: resolvedScale,
     x: (width.value / 2) + props.position.x,
-    y: height.value + props.position.y
+    y: height.value + props.position.y,
   }
 }
 
@@ -191,8 +245,7 @@ const getCoreModel = () => {
 }
 
 const setCoreParameter = (id: string, value: number) => {
-  const coreModel = getCoreModel()
-  coreModel?.setParameterValueById(id, value)
+  getCoreModel()?.setParameterValueById(id, value)
 }
 
 const applyModelParameters = () => {
@@ -254,18 +307,6 @@ const applyShadow = () => {
   model.value.filters = props.shadowEnabled ? null : []
 }
 
-const stopBlinkLoop = () => {
-  if (blinkTimer != null) {
-    window.clearTimeout(blinkTimer)
-    blinkTimer = null
-  }
-
-  if (blinkResetTimer != null) {
-    window.clearTimeout(blinkResetTimer)
-    blinkResetTimer = null
-  }
-}
-
 const startBlinkLoop = () => {
   stopBlinkLoop()
 
@@ -292,6 +333,90 @@ const startBlinkLoop = () => {
   scheduleBlink()
 }
 
+const extractAvailableMotions = (loadedModel: Live2DModel): Live2DMotion[] => {
+  const definitions = ((loadedModel.internalModel as {
+    motionManager?: { definitions?: Record<string, Array<{ File?: string }> | undefined> }
+  }).motionManager?.definitions ?? {}) as Record<string, Array<{ File?: string }> | undefined>
+
+  return Object.entries(definitions).flatMap(([motionName, definition]) =>
+    (definition?.map((motion, motionIndex) => ({
+      motionName,
+      motionIndex,
+      fileName: motion.File || `${motionName}/${motionIndex}`,
+    })) ?? []),
+  )
+}
+
+const configureSelectedMotionLoop = () => {
+  if (!model.value || !props.currentMotion?.group || props.currentMotion.index == null) {
+    return
+  }
+
+  const motionManager = ((model.value.internalModel as unknown) as {
+    motionManager?: {
+      groups?: Record<string, string | number>
+      motionGroups?: Array<Array<{ _looper?: { loopDuration?: number } }>>
+    }
+  }).motionManager
+
+  const groupIndex = motionManager?.groups?.[props.currentMotion.group]
+  if (groupIndex == null) {
+    return
+  }
+
+  const numericGroupIndex = typeof groupIndex === 'number' ? groupIndex : Number.parseInt(String(groupIndex), 10)
+  if (Number.isNaN(numericGroupIndex)) {
+    return
+  }
+
+  const motion = motionManager?.motionGroups?.[numericGroupIndex]?.[props.currentMotion.index]
+  if (motion?._looper) {
+    motion._looper.loopDuration = 0
+  }
+}
+
+const applyMotion = async () => {
+  if (!model.value || !props.idleAnimationEnabled) {
+    return
+  }
+
+  if (!props.currentMotion?.group) {
+    return
+  }
+
+  configureSelectedMotionLoop()
+
+  try {
+    await model.value.motion(props.currentMotion.group, props.currentMotion.index, MotionPriority.FORCE)
+  }
+  catch (error) {
+    console.warn('切换 Live2D 动作失败:', error)
+  }
+}
+
+const bindMotionLoop = () => {
+  clearMotionFinishListener()
+
+  const motionManager = (model.value?.internalModel as {
+    motionManager?: { on?: (event: string, handler: () => void) => void, off?: (event: string, handler: () => void) => void }
+  })?.motionManager
+
+  if (!motionManager?.on) {
+    return
+  }
+
+  const handleMotionFinish = () => {
+    if (props.idleAnimationEnabled && props.currentMotion?.group) {
+      void applyMotion()
+    }
+  }
+
+  motionManager.on('motionFinish', handleMotionFinish)
+  if (motionManager.off) {
+    removeMotionFinishListener = () => motionManager.off?.('motionFinish', handleMotionFinish)
+  }
+}
+
 const handleResize = () => {
   if (containerRef.value) {
     width.value = containerRef.value.clientWidth
@@ -306,6 +431,30 @@ const handleResize = () => {
   applyTransform()
 }
 
+const createModelFromSource = async () => {
+  if (!resolvedModelUrl.value) {
+    throw new Error('Live2D model URL is missing')
+  }
+
+  if (props.modelId && props.modelPath) {
+    try {
+      const files = await loadLive2dFilesWithOpfs({
+        modelId: props.modelId,
+        settingsUrl: resolvedModelUrl.value,
+        settingsPath: props.modelPath,
+      })
+      const settings = await FileLoader.createSettings(files)
+      await FileLoader.upload(files, settings)
+      return await Live2DModel.from(settings) as Live2DModel
+    }
+    catch (error) {
+      console.warn('[OPFS] Falling back to network model loading:', error)
+    }
+  }
+
+  return await Live2DModel.from(resolvedModelUrl.value) as Live2DModel
+}
+
 const loadModel = async () => {
   if (!app.value) {
     return
@@ -313,12 +462,12 @@ const loadModel = async () => {
 
   destroyModel()
 
-  if (!props.modelUrl) {
+  if (!resolvedModelUrl.value) {
     return
   }
 
   try {
-    const loadedModel = await Live2DModel.from(props.modelUrl) as Live2DModel
+    const loadedModel = await createModelFromSource()
     if (!app.value) {
       loadedModel.destroy()
       return
@@ -330,14 +479,22 @@ const loadModel = async () => {
     loadedModel.anchor.set(0.5, 0.5)
     app.value.stage.addChild(loadedModel as never)
     model.value = loadedModel
+
+    emit('motionsLoaded', extractAvailableMotions(loadedModel))
+
     applyTransform()
     applyModelParameters()
     applyFocus()
     applyShadow()
     startBlinkLoop()
+    bindMotionLoop()
+    await applyExpression()
+    await applyMotion()
     emit('loaded')
-  } catch (error) {
+  }
+  catch (error) {
     console.error('加载 Live2D 模型失败:', error)
+    emit('motionsLoaded', [])
     emit('error', error instanceof Error ? error.message : '加载 Live2D 模型失败')
   }
 }
@@ -347,16 +504,23 @@ const applyExpression = async () => {
     return
   }
 
+  const motionManager = (model.value.internalModel as { motionManager?: { resetExpression?: () => void } }).motionManager
+
+  if (!props.expressionSystemEnabled) {
+    motionManager?.resetExpression?.()
+    return
+  }
+
   const expressionName = props.expressionRequest?.name
   if (!expressionName) {
-    const motionManager = (model.value.internalModel as { motionManager?: { resetExpression?: () => void } }).motionManager
     motionManager?.resetExpression?.()
     return
   }
 
   try {
     await model.value.expression(expressionName)
-  } catch (error) {
+  }
+  catch (error) {
     console.warn('切换 Live2D 表情失败:', error)
   }
 }
@@ -382,7 +546,7 @@ onUnmounted(() => {
   destroyPixi()
 })
 
-watch(() => props.modelUrl, async () => {
+watch(() => resolvedModelUrl.value, async () => {
   await loadModel()
 })
 
@@ -405,28 +569,43 @@ watch(
   () => {
     applyModelParameters()
   },
-  { deep: true }
+  { deep: true },
 )
 
 watch(
   () => [props.focusAt.x, props.focusAt.y, props.disableFocus],
   () => {
     applyFocus()
-  }
+  },
 )
 
 watch(
   () => props.shadowEnabled,
   () => {
     applyShadow()
-  }
+  },
 )
 
 watch(
   () => [props.autoBlinkEnabled, props.forceAutoBlinkEnabled],
   () => {
     startBlinkLoop()
-  }
+  },
+)
+
+watch(
+  () => [props.currentMotion?.group, props.currentMotion?.index, props.idleAnimationEnabled],
+  async () => {
+    bindMotionLoop()
+    await applyMotion()
+  },
+)
+
+watch(
+  () => props.expressionSystemEnabled,
+  async () => {
+    await applyExpression()
+  },
 )
 
 async function captureFrame() {
@@ -446,7 +625,7 @@ function canvasElement() {
 
 defineExpose({
   captureFrame,
-  canvasElement
+  canvasElement,
 })
 </script>
 

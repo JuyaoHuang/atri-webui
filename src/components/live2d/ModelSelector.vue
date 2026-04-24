@@ -68,7 +68,7 @@ async function handleRename(modelId: string, name: string) {
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
     <div flex items-center>
       <div w-full flex-1 text-xl>
-        Model Selector
+        模型选择器
       </div>
       <div>
         <DropdownMenuRoot>
@@ -79,7 +79,7 @@ async function handleRename(modelId: string, name: string) {
             aria-label="Options for Display Models"
           >
             <div i-solar:add-circle-bold />
-            <div>Add</div>
+            <div>添加</div>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
@@ -109,7 +109,7 @@ async function handleRename(modelId: string, name: string) {
       </div>
     </div>
     <div v-if="live2dStore.loading">
-      Loading display models...
+      正在加载模型...
     </div>
     <div class="flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll" h-full w-full>
       <div class="w-full flex gap-2 md:grid lg:grid-cols-2 md:grid-cols-1 lg:max-h-80dvh">
@@ -155,7 +155,7 @@ async function handleRename(modelId: string, name: string) {
                   >
                     <button flex items-center gap-1 outline-none @click="handleRemoveModel(model.id)">
                       <div i-solar:trash-bin-minimalistic-bold-duotone />
-                      <div>Remove</div>
+                      <div>删除</div>
                     </button>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -200,7 +200,7 @@ async function handleRename(modelId: string, name: string) {
               <EditableRoot
                 v-slot="{ isEditing }"
                 :default-value="model.name"
-                placeholder="Model Name..."
+                placeholder="模型名称..."
                 class="flex gap-2"
                 auto-resize
                 @submit="(event) => handleRename(model.id, String(event))"
@@ -224,14 +224,14 @@ async function handleRename(modelId: string, name: string) {
               </div>
             </div>
             <Button class="hidden md:block" variant="secondary" @click="handlePick(model.id)">
-              Pick
+              选择
             </Button>
           </div>
         </div>
       </div>
     </div>
     <Button class="block md:hidden" @click="handleMobilePick()">
-      Confirm
+      确认
     </Button>
   </div>
 </template>

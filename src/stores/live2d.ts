@@ -1,25 +1,18 @@
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import { live2dApi } from '@/api/live2d'
 import type { Live2DModelResponse } from '@/api/types'
-import type { Live2DExpressionRequest, Live2DModel, Live2DPosition } from '@/types/live2d'
+import type {
+  Live2DExpressionLlmMode,
+  Live2DExpressionRequest,
+  Live2DModel,
+  Live2DMotion,
+  Live2DMotionSelection,
+  Live2DPosition,
+} from '@/types/live2d'
+import { clearLive2dOpfsCache } from '@/utils/live2dOpfs'
 import { extractLive2dExpression } from '@/utils/live2dExpression'
-
-interface Live2DPreferences {
-  enabled: boolean
-  activeModelId: string | null
-  position: Live2DPosition
-  scale: number
-  disableFocus: boolean
-  idleAnimationEnabled: boolean
-  autoBlinkEnabled: boolean
-  forceAutoBlinkEnabled: boolean
-  shadowEnabled: boolean
-  maxFps: number
-  renderScale: number
-  modelParameters: Live2DModelParameters
-  savedExpressionDefaults: string[]
-}
 
 export interface Live2DModelParameters {
   angleX: number
@@ -46,16 +39,30 @@ export interface Live2DModelParameters {
   breath: number
 }
 
-export interface Live2DState extends Live2DPreferences {
-  models: Live2DModel[]
-  loading: boolean
-  uploading: boolean
-  expressionRequest: Live2DExpressionRequest
-  activeExpressions: string[]
+interface Live2DPreferences {
+  enabled: boolean
+  activeModelId: string | null
+  position: Live2DPosition
+  scale: number
+  disableFocus: boolean
+  idleAnimationEnabled: boolean
+  autoBlinkEnabled: boolean
+  forceAutoBlinkEnabled: boolean
+  shadowEnabled: boolean
+  maxFps: number
+  renderScale: number
+  modelParameters: Live2DModelParameters
+  savedExpressionDefaults: string[]
+  selectedRuntimeMotionPath: string
+  currentMotion: Live2DMotionSelection | null
+  expressionEnabled: boolean
+  expressionLlmMode: Live2DExpressionLlmMode
+  expressionLlmExposed: Record<string, boolean>
 }
 
 const STORAGE_KEY = 'atri-live2d-settings'
-const DEFAULT_MODEL_PARAMETERS: Live2DModelParameters = {
+
+export const DEFAULT_MODEL_PARAMETERS: Live2DModelParameters = {
   angleX: 0,
   angleY: 0,
   angleZ: 0,
@@ -77,7 +84,7 @@ const DEFAULT_MODEL_PARAMETERS: Live2DModelParameters = {
   bodyAngleX: 0,
   bodyAngleY: 0,
   bodyAngleZ: 0,
-  breath: 0
+  breath: 0,
 }
 
 const DEFAULT_PREFERENCES: Live2DPreferences = {
@@ -93,14 +100,19 @@ const DEFAULT_PREFERENCES: Live2DPreferences = {
   maxFps: 0,
   renderScale: 2,
   modelParameters: { ...DEFAULT_MODEL_PARAMETERS },
-  savedExpressionDefaults: []
+  savedExpressionDefaults: [],
+  selectedRuntimeMotionPath: '',
+  currentMotion: null,
+  expressionEnabled: true,
+  expressionLlmMode: 'none',
+  expressionLlmExposed: {},
 }
 
 function loadPreferences(): Live2DPreferences {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return { ...DEFAULT_PREFERENCES }
+      return { ...DEFAULT_PREFERENCES, modelParameters: { ...DEFAULT_MODEL_PARAMETERS } }
     }
 
     const parsed = JSON.parse(raw) as Partial<Live2DPreferences>
@@ -109,7 +121,7 @@ function loadPreferences(): Live2DPreferences {
       activeModelId: parsed.activeModelId ?? DEFAULT_PREFERENCES.activeModelId,
       position: {
         x: parsed.position?.x ?? DEFAULT_PREFERENCES.position.x,
-        y: parsed.position?.y ?? DEFAULT_PREFERENCES.position.y
+        y: parsed.position?.y ?? DEFAULT_PREFERENCES.position.y,
       },
       scale: parsed.scale ?? DEFAULT_PREFERENCES.scale,
       disableFocus: parsed.disableFocus ?? DEFAULT_PREFERENCES.disableFocus,
@@ -121,13 +133,19 @@ function loadPreferences(): Live2DPreferences {
       renderScale: parsed.renderScale ?? DEFAULT_PREFERENCES.renderScale,
       modelParameters: {
         ...DEFAULT_MODEL_PARAMETERS,
-        ...parsed.modelParameters
+        ...parsed.modelParameters,
       },
-      savedExpressionDefaults: parsed.savedExpressionDefaults ?? DEFAULT_PREFERENCES.savedExpressionDefaults
+      savedExpressionDefaults: parsed.savedExpressionDefaults ?? DEFAULT_PREFERENCES.savedExpressionDefaults,
+      selectedRuntimeMotionPath: parsed.selectedRuntimeMotionPath ?? DEFAULT_PREFERENCES.selectedRuntimeMotionPath,
+      currentMotion: parsed.currentMotion ?? DEFAULT_PREFERENCES.currentMotion,
+      expressionEnabled: parsed.expressionEnabled ?? DEFAULT_PREFERENCES.expressionEnabled,
+      expressionLlmMode: parsed.expressionLlmMode ?? DEFAULT_PREFERENCES.expressionLlmMode,
+      expressionLlmExposed: parsed.expressionLlmExposed ?? DEFAULT_PREFERENCES.expressionLlmExposed,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('加载 Live2D 设置失败:', error)
-    return { ...DEFAULT_PREFERENCES }
+    return { ...DEFAULT_PREFERENCES, modelParameters: { ...DEFAULT_MODEL_PARAMETERS } }
   }
 }
 
@@ -140,260 +158,438 @@ function mapModel(model: Live2DModelResponse): Live2DModel {
     thumbnailUrl: model.thumbnail_url || undefined,
     expressions: model.expressions || [],
     createdAt: model.created_at,
-    isDefault: model.is_default
+    isDefault: model.is_default,
   }
 }
 
-export const useLive2dStore = defineStore('live2d', {
-  state: (): Live2DState => {
-    const preferences = loadPreferences()
-    return {
-      ...preferences,
-      models: [],
-      loading: false,
-      uploading: false,
-      expressionRequest: {
+export const useLive2dStore = defineStore('live2d', () => {
+  const preferences = loadPreferences()
+
+  const enabled = ref(preferences.enabled)
+  const activeModelId = ref<string | null>(preferences.activeModelId)
+  const position = ref<Live2DPosition>({ ...preferences.position })
+  const scale = ref(preferences.scale)
+  const disableFocus = ref(preferences.disableFocus)
+  const idleAnimationEnabled = ref(preferences.idleAnimationEnabled)
+  const autoBlinkEnabled = ref(preferences.autoBlinkEnabled)
+  const forceAutoBlinkEnabled = ref(preferences.forceAutoBlinkEnabled)
+  const shadowEnabled = ref(preferences.shadowEnabled)
+  const maxFps = ref(preferences.maxFps)
+  const renderScale = ref(preferences.renderScale)
+  const modelParameters = ref<Live2DModelParameters>({ ...preferences.modelParameters })
+  const savedExpressionDefaults = ref<string[]>([...preferences.savedExpressionDefaults])
+  const selectedRuntimeMotionPath = ref(preferences.selectedRuntimeMotionPath)
+  const currentMotion = ref<Live2DMotionSelection | null>(preferences.currentMotion)
+  const expressionEnabled = ref(preferences.expressionEnabled)
+  const expressionLlmMode = ref<Live2DExpressionLlmMode>(preferences.expressionLlmMode)
+  const expressionLlmExposed = ref<Record<string, boolean>>({ ...preferences.expressionLlmExposed })
+
+  const models = ref<Live2DModel[]>([])
+  const loading = ref(false)
+  const uploading = ref(false)
+  const availableMotions = ref<Live2DMotion[]>([])
+  const expressionRequest = ref<Live2DExpressionRequest>({
+    name: null,
+    token: 0,
+  })
+  const activeExpressions = ref<string[]>([...preferences.savedExpressionDefaults])
+  const modelCacheVersion = ref(0)
+
+  const activeModel = computed<Live2DModel | null>(() =>
+    models.value.find(model => model.id === activeModelId.value) || null,
+  )
+
+  const expressionGroups = computed(() => activeModel.value?.expressions ?? [])
+
+  function savePreferences() {
+    try {
+      const payload: Live2DPreferences = {
+        enabled: enabled.value,
+        activeModelId: activeModelId.value,
+        position: position.value,
+        scale: scale.value,
+        disableFocus: disableFocus.value,
+        idleAnimationEnabled: idleAnimationEnabled.value,
+        autoBlinkEnabled: autoBlinkEnabled.value,
+        forceAutoBlinkEnabled: forceAutoBlinkEnabled.value,
+        shadowEnabled: shadowEnabled.value,
+        maxFps: maxFps.value,
+        renderScale: renderScale.value,
+        modelParameters: modelParameters.value,
+        savedExpressionDefaults: savedExpressionDefaults.value,
+        selectedRuntimeMotionPath: selectedRuntimeMotionPath.value,
+        currentMotion: currentMotion.value,
+        expressionEnabled: expressionEnabled.value,
+        expressionLlmMode: expressionLlmMode.value,
+        expressionLlmExposed: expressionLlmExposed.value,
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    }
+    catch (error) {
+      console.error('保存 Live2D 设置失败:', error)
+    }
+  }
+
+  watch(
+    () => ({
+      enabled: enabled.value,
+      activeModelId: activeModelId.value,
+      position: position.value,
+      scale: scale.value,
+      disableFocus: disableFocus.value,
+      idleAnimationEnabled: idleAnimationEnabled.value,
+      autoBlinkEnabled: autoBlinkEnabled.value,
+      forceAutoBlinkEnabled: forceAutoBlinkEnabled.value,
+      shadowEnabled: shadowEnabled.value,
+      maxFps: maxFps.value,
+      renderScale: renderScale.value,
+      modelParameters: modelParameters.value,
+      savedExpressionDefaults: savedExpressionDefaults.value,
+      selectedRuntimeMotionPath: selectedRuntimeMotionPath.value,
+      currentMotion: currentMotion.value,
+      expressionEnabled: expressionEnabled.value,
+      expressionLlmMode: expressionLlmMode.value,
+      expressionLlmExposed: expressionLlmExposed.value,
+    }),
+    () => savePreferences(),
+    { deep: true },
+  )
+
+  function syncExpressionState() {
+    const validExpressions = new Set(activeModel.value?.expressions ?? [])
+    activeExpressions.value = activeExpressions.value.filter(name => validExpressions.has(name))
+    savedExpressionDefaults.value = savedExpressionDefaults.value.filter(name => validExpressions.has(name))
+
+    expressionLlmExposed.value = Object.fromEntries(
+      Object.entries(expressionLlmExposed.value).filter(([name]) => validExpressions.has(name)),
+    )
+
+    if (!expressionEnabled.value || activeExpressions.value.length === 0) {
+      expressionRequest.value = {
         name: null,
-        token: 0
-      },
-      activeExpressions: preferences.savedExpressionDefaults
+        token: Date.now(),
+      }
+      return
     }
-  },
 
-  getters: {
-    activeModel(state): Live2DModel | null {
-      return state.models.find(model => model.id === state.activeModelId) || null
+    const nextExpression = activeExpressions.value[0] || null
+    expressionRequest.value = {
+      name: nextExpression,
+      token: Date.now(),
     }
-  },
+  }
 
-  actions: {
-    savePreferences() {
-      try {
-        const payload: Live2DPreferences = {
-          enabled: this.enabled,
-          activeModelId: this.activeModelId,
-          position: this.position,
-          scale: this.scale,
-          disableFocus: this.disableFocus,
-          idleAnimationEnabled: this.idleAnimationEnabled,
-          autoBlinkEnabled: this.autoBlinkEnabled,
-          forceAutoBlinkEnabled: this.forceAutoBlinkEnabled,
-          shadowEnabled: this.shadowEnabled,
-          maxFps: this.maxFps,
-          renderScale: this.renderScale,
-          modelParameters: this.modelParameters,
-          savedExpressionDefaults: this.savedExpressionDefaults
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-      } catch (error) {
-        console.error('保存 Live2D 设置失败:', error)
-      }
-    },
-
-    ensureActiveModel() {
-      const active = this.models.find(model => model.id === this.activeModelId)
-      if (active) {
-        return
-      }
-
-      const fallbackModel = this.models.find(model => model.isDefault) || this.models[0] || null
-      this.activeModelId = fallbackModel?.id || null
-      this.savePreferences()
-    },
-
-    async fetchModels() {
-      this.loading = true
-      try {
-        const response = await live2dApi.list()
-        this.models = response.map(mapModel)
-        this.ensureActiveModel()
-        return this.models
-      } catch (error) {
-        console.error('获取 Live2D 模型失败:', error)
-        this.models = []
-        this.activeModelId = null
-        return []
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async uploadModel(file: File, name?: string) {
-      this.uploading = true
-      try {
-        const response = await live2dApi.upload(file, name)
-        const model = mapModel(response)
-        const existingIndex = this.models.findIndex(item => item.id === model.id)
-
-        if (existingIndex >= 0) {
-          this.models.splice(existingIndex, 1, model)
-        } else {
-          this.models.unshift(model)
-        }
-
-        if (model.isDefault || !this.activeModelId) {
-          this.activeModelId = model.id
-        }
-
-        this.savePreferences()
-        return model
-      } finally {
-        this.uploading = false
-      }
-    },
-
-    async renameModel(modelId: string, name: string) {
-      const response = await live2dApi.update(modelId, { name })
-      const nextModel = mapModel(response)
-      const index = this.models.findIndex(model => model.id === modelId)
-      if (index >= 0) {
-        this.models.splice(index, 1, nextModel)
-      }
-      if (this.activeModelId === modelId) {
-        this.activeModelId = nextModel.id
-      }
-      this.savePreferences()
-      return nextModel
-    },
-
-    async deleteModel(modelId: string) {
-      await live2dApi.remove(modelId)
-      this.models = this.models.filter(model => model.id !== modelId)
-      if (this.activeModelId === modelId) {
-        this.activeModelId = null
-        this.ensureActiveModel()
-      }
-      this.savePreferences()
-    },
-
-    setEnabled(value: boolean) {
-      this.enabled = value
-      this.savePreferences()
-    },
-
-    setActiveModel(modelId: string) {
-      this.activeModelId = modelId
-      this.savePreferences()
-    },
-
-    setScale(value: number) {
-      this.scale = value
-      this.savePreferences()
-    },
-
-    setMaxFps(value: number) {
-      this.maxFps = value
-      this.savePreferences()
-    },
-
-    setRenderScale(value: number) {
-      this.renderScale = value
-      this.savePreferences()
-    },
-
-    setDisableFocus(value: boolean) {
-      this.disableFocus = value
-      this.savePreferences()
-    },
-
-    setIdleAnimationEnabled(value: boolean) {
-      this.idleAnimationEnabled = value
-      this.savePreferences()
-    },
-
-    setAutoBlinkEnabled(value: boolean) {
-      this.autoBlinkEnabled = value
-      this.savePreferences()
-    },
-
-    setForceAutoBlinkEnabled(value: boolean) {
-      this.forceAutoBlinkEnabled = value
-      this.savePreferences()
-    },
-
-    setShadowEnabled(value: boolean) {
-      this.shadowEnabled = value
-      this.savePreferences()
-    },
-
-    setPosition(position: Partial<Live2DPosition>) {
-      this.position = {
-        ...this.position,
-        ...position
-      }
-      this.savePreferences()
-    },
-
-    resetTransform() {
-      this.position = { ...DEFAULT_PREFERENCES.position }
-      this.scale = DEFAULT_PREFERENCES.scale
-      this.savePreferences()
-    },
-
-    setModelParameter<K extends keyof Live2DModelParameters>(key: K, value: Live2DModelParameters[K]) {
-      this.modelParameters = {
-        ...this.modelParameters,
-        [key]: value
-      }
-      this.savePreferences()
-    },
-
-    resetModelParameters() {
-      this.modelParameters = { ...DEFAULT_MODEL_PARAMETERS }
-      this.savePreferences()
-    },
-
-    requestExpression(name: string | null) {
-      const activeModel = this.models.find(model => model.id === this.activeModelId)
-      const matchedExpression = !name || !activeModel
-        ? null
-        : activeModel.expressions.find(expression => expression.toLowerCase() === name.toLowerCase()) || null
-
-      this.expressionRequest = {
-        name: matchedExpression,
-        token: Date.now()
-      }
-
-      this.activeExpressions = matchedExpression ? [matchedExpression] : []
-    },
-
-    toggleExpression(name: string) {
-      const isActive = this.activeExpressions.includes(name)
-      if (isActive) {
-        this.activeExpressions = this.activeExpressions.filter(item => item !== name)
-        this.requestExpression(null)
-        return
-      }
-
-      this.activeExpressions = [name]
-      this.requestExpression(name)
-    },
-
-    saveExpressionDefaults() {
-      this.savedExpressionDefaults = [...this.activeExpressions]
-      this.savePreferences()
-    },
-
-    resetAllExpressions() {
-      this.activeExpressions = [...this.savedExpressionDefaults]
-      this.requestExpression(this.activeExpressions[0] || null)
-      this.savePreferences()
-    },
-
-    clearModelCache() {
-      this.resetModelParameters()
-      this.resetTransform()
-      this.activeExpressions = []
-      this.requestExpression(null)
-      this.savePreferences()
-    },
-
-    parseAndApplyExpression(text: string) {
-      const parsed = extractLive2dExpression(text)
-      if (parsed.expression) {
-        this.requestExpression(parsed.expression)
-      }
-      return parsed
+  function ensureActiveModel() {
+    const active = models.value.find(model => model.id === activeModelId.value)
+    if (active) {
+      syncExpressionState()
+      return
     }
+
+    const fallbackModel = models.value.find(model => model.isDefault) || models.value[0] || null
+    activeModelId.value = fallbackModel?.id || null
+    syncExpressionState()
+  }
+
+  function setAvailableMotions(motions: Live2DMotion[]) {
+    availableMotions.value = motions
+
+    if (!selectedRuntimeMotionPath.value) {
+      return
+    }
+
+    const selectedMotion = motions.find(motion => motion.fileName === selectedRuntimeMotionPath.value)
+    if (selectedMotion) {
+      currentMotion.value = {
+        group: selectedMotion.motionName,
+        index: selectedMotion.motionIndex,
+      }
+    }
+  }
+
+  async function fetchModels() {
+    loading.value = true
+    try {
+      const response = await live2dApi.list()
+      models.value = response.map(mapModel)
+      ensureActiveModel()
+      return models.value
+    }
+    catch (error) {
+      console.error('获取 Live2D 模型失败:', error)
+      models.value = []
+      activeModelId.value = null
+      activeExpressions.value = []
+      availableMotions.value = []
+      return []
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  async function uploadModel(file: File, name?: string) {
+    uploading.value = true
+    try {
+      const response = await live2dApi.upload(file, name)
+      const model = mapModel(response)
+      const existingIndex = models.value.findIndex(item => item.id === model.id)
+
+      if (existingIndex >= 0) {
+        models.value.splice(existingIndex, 1, model)
+      }
+      else {
+        models.value.unshift(model)
+      }
+
+      if (model.isDefault || !activeModelId.value) {
+        activeModelId.value = model.id
+      }
+
+      ensureActiveModel()
+      return model
+    }
+    finally {
+      uploading.value = false
+    }
+  }
+
+  async function renameModel(modelId: string, name: string) {
+    const response = await live2dApi.update(modelId, { name })
+    const nextModel = mapModel(response)
+    const index = models.value.findIndex(model => model.id === modelId)
+
+    if (index >= 0) {
+      models.value.splice(index, 1, nextModel)
+    }
+
+    if (activeModelId.value === modelId) {
+      activeModelId.value = nextModel.id
+    }
+
+    ensureActiveModel()
+    return nextModel
+  }
+
+  async function deleteModel(modelId: string) {
+    await live2dApi.remove(modelId)
+    models.value = models.value.filter(model => model.id !== modelId)
+    if (activeModelId.value === modelId) {
+      activeModelId.value = null
+      availableMotions.value = []
+      selectedRuntimeMotionPath.value = ''
+      currentMotion.value = null
+    }
+    ensureActiveModel()
+  }
+
+  function setEnabled(value: boolean) {
+    enabled.value = value
+  }
+
+  function setActiveModel(modelId: string) {
+    activeModelId.value = modelId
+    availableMotions.value = []
+    selectedRuntimeMotionPath.value = ''
+    currentMotion.value = null
+    syncExpressionState()
+  }
+
+  function setScale(value: number) {
+    scale.value = value
+  }
+
+  function setMaxFps(value: number) {
+    maxFps.value = value
+  }
+
+  function setRenderScale(value: number) {
+    renderScale.value = value
+  }
+
+  function setDisableFocus(value: boolean) {
+    disableFocus.value = value
+  }
+
+  function setIdleAnimationEnabled(value: boolean) {
+    idleAnimationEnabled.value = value
+  }
+
+  function setAutoBlinkEnabled(value: boolean) {
+    autoBlinkEnabled.value = value
+  }
+
+  function setForceAutoBlinkEnabled(value: boolean) {
+    forceAutoBlinkEnabled.value = value
+  }
+
+  function setShadowEnabled(value: boolean) {
+    shadowEnabled.value = value
+  }
+
+  function setExpressionEnabled(value: boolean) {
+    expressionEnabled.value = value
+    syncExpressionState()
+  }
+
+  function setExpressionLlmMode(value: Live2DExpressionLlmMode) {
+    expressionLlmMode.value = value
+  }
+
+  function setExpressionLlmExposed(name: string, value: boolean) {
+    expressionLlmExposed.value = {
+      ...expressionLlmExposed.value,
+      [name]: value,
+    }
+  }
+
+  function setPosition(nextPosition: Partial<Live2DPosition>) {
+    position.value = {
+      ...position.value,
+      ...nextPosition,
+    }
+  }
+
+  function resetTransform() {
+    position.value = { ...DEFAULT_PREFERENCES.position }
+    scale.value = DEFAULT_PREFERENCES.scale
+  }
+
+  function setModelParameter<K extends keyof Live2DModelParameters>(key: K, value: Live2DModelParameters[K]) {
+    modelParameters.value = {
+      ...modelParameters.value,
+      [key]: value,
+    }
+  }
+
+  function resetModelParameters() {
+    modelParameters.value = { ...DEFAULT_MODEL_PARAMETERS }
+  }
+
+  function requestExpression(name: string | null) {
+    const matchedExpression = !name
+      ? null
+      : activeModel.value?.expressions.find(expression => expression.toLowerCase() === name.toLowerCase()) || null
+
+    expressionRequest.value = {
+      name: expressionEnabled.value ? matchedExpression : null,
+      token: Date.now(),
+    }
+
+    activeExpressions.value = matchedExpression ? [matchedExpression] : []
+  }
+
+  function toggleExpression(name: string) {
+    const isActive = activeExpressions.value.includes(name)
+    if (isActive) {
+      activeExpressions.value = activeExpressions.value.filter(item => item !== name)
+      requestExpression(null)
+      return
+    }
+
+    activeExpressions.value = [name]
+    requestExpression(name)
+  }
+
+  function saveExpressionDefaults() {
+    savedExpressionDefaults.value = [...activeExpressions.value]
+  }
+
+  function resetAllExpressions() {
+    activeExpressions.value = [...savedExpressionDefaults.value]
+    requestExpression(activeExpressions.value[0] || null)
+  }
+
+  function setSelectedRuntimeMotion(path: string | number | undefined) {
+    const nextPath = typeof path === 'string' ? path : ''
+    selectedRuntimeMotionPath.value = nextPath
+
+    if (!nextPath) {
+      currentMotion.value = null
+      return
+    }
+
+    const selectedMotion = availableMotions.value.find(motion => motion.fileName === nextPath)
+    if (!selectedMotion) {
+      return
+    }
+
+    idleAnimationEnabled.value = true
+    currentMotion.value = {
+      group: selectedMotion.motionName,
+      index: selectedMotion.motionIndex,
+    }
+  }
+
+  async function clearModelCache() {
+    await clearLive2dOpfsCache()
+    modelCacheVersion.value = Date.now()
+  }
+
+  function parseAndApplyExpression(text: string) {
+    const parsed = extractLive2dExpression(text)
+    if (parsed.expression) {
+      requestExpression(parsed.expression)
+    }
+    return parsed
+  }
+
+  return {
+    enabled,
+    activeModelId,
+    position,
+    scale,
+    disableFocus,
+    idleAnimationEnabled,
+    autoBlinkEnabled,
+    forceAutoBlinkEnabled,
+    shadowEnabled,
+    maxFps,
+    renderScale,
+    modelParameters,
+    savedExpressionDefaults,
+    selectedRuntimeMotionPath,
+    currentMotion,
+    expressionEnabled,
+    expressionLlmMode,
+    expressionLlmExposed,
+    models,
+    loading,
+    uploading,
+    availableMotions,
+    expressionRequest,
+    activeExpressions,
+    modelCacheVersion,
+    activeModel,
+    expressionGroups,
+    fetchModels,
+    uploadModel,
+    renameModel,
+    deleteModel,
+    setEnabled,
+    setActiveModel,
+    setScale,
+    setMaxFps,
+    setRenderScale,
+    setDisableFocus,
+    setIdleAnimationEnabled,
+    setAutoBlinkEnabled,
+    setForceAutoBlinkEnabled,
+    setShadowEnabled,
+    setExpressionEnabled,
+    setExpressionLlmMode,
+    setExpressionLlmExposed,
+    setPosition,
+    resetTransform,
+    setModelParameter,
+    resetModelParameters,
+    requestExpression,
+    toggleExpression,
+    saveExpressionDefaults,
+    resetAllExpressions,
+    setSelectedRuntimeMotion,
+    setAvailableMotions,
+    clearModelCache,
+    parseAndApplyExpression,
   }
 })

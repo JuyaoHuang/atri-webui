@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import type { ModelSettingsRuntimeSnapshot } from './runtime'
+
 import ModelSettingsPanel from './ModelSettingsPanel.vue'
 import ModelSettingsPreviewStage from './ModelSettingsPreviewStage.vue'
+import { createEmptyModelSettingsRuntimeSnapshot } from './runtime'
 
 withDefaults(defineProps<{
   palette: string[]
@@ -18,9 +21,14 @@ defineEmits<{
 }>()
 
 const previewStageRef = ref<{ capturePreviewFrame: () => Promise<Blob | undefined> }>()
+const runtimeSnapshot = ref<ModelSettingsRuntimeSnapshot>(createEmptyModelSettingsRuntimeSnapshot())
 
 async function capturePreviewFrame() {
   return previewStageRef.value?.capturePreviewFrame()
+}
+
+function handleRuntimeSnapshotChanged(nextSnapshot: ModelSettingsRuntimeSnapshot) {
+  runtimeSnapshot.value = nextSnapshot
 }
 
 defineExpose({
@@ -32,11 +40,13 @@ defineExpose({
   <ModelSettingsPanel
     :allow-extract-colors="allowExtractColors"
     :palette="palette"
+    :runtime-snapshot="runtimeSnapshot"
     :settings-class="settingsClass"
     @extract-colors-from-model="$emit('extractColorsFromModel')"
   />
   <ModelSettingsPreviewStage
     ref="previewStageRef"
     :live2d-scene-class="live2dSceneClass"
+    @runtime-snapshot-changed="handleRuntimeSnapshotChanged"
   />
 </template>

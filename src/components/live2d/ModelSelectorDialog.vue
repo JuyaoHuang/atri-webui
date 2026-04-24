@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { breakpointsTailwind, useBreakpoints, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 
 import ModelSelector from './ModelSelector.vue'
 
@@ -14,9 +15,12 @@ const emit = defineEmits<{
 }>()
 
 const showDialog = defineModel<boolean>('show', { default: false })
-const isDesktop = computed(() => window.matchMedia('(min-width: 768px)').matches)
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isDesktop = breakpoints.greaterOrEqual('md')
+const screenSafeArea = useScreenSafeArea()
 
-onMounted(() => {})
+useResizeObserver(document.documentElement, () => screenSafeArea.update())
+onMounted(() => screenSafeArea.update())
 </script>
 
 <template>
@@ -49,7 +53,7 @@ onMounted(() => {})
           'rounded-t-[32px] outline-none backdrop-blur-md',
           'bg-neutral-50/85 dark:bg-neutral-900/90',
         ]"
-        style="padding-bottom: 24px"
+        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
       >
         <DrawerHandle />
         <ModelSelector :selected-model-id="props.selectedModelId" @close="showDialog = false" @pick="value => emit('pick', value)" />
