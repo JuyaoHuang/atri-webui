@@ -101,11 +101,11 @@ export const useUserStore = defineStore('user', {
 
         try {
           await this.fetchCurrentUser()
-        } catch (error) {
+        } catch {
           clearStoredAuthToken()
           this.auth.token = null
           this.auth.user = null
-          this.auth.error = getErrorMessage(error)
+          this.auth.error = 'Login has expired. Please sign in again.'
         }
       } catch (error) {
         this.auth.enabled = false

@@ -18,7 +18,7 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-function redirectToLogin() {
+function redirectToLogin(reason = 'expired') {
   if (typeof window === 'undefined') {
     return
   }
@@ -28,7 +28,9 @@ function redirectToLogin() {
     return
   }
 
-  window.location.assign(`/login?redirect=${encodeURIComponent(currentPath)}`)
+  window.location.assign(
+    `/login?redirect=${encodeURIComponent(currentPath)}&reason=${encodeURIComponent(reason)}`
+  )
 }
 
 client.interceptors.response.use(

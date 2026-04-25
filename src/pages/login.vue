@@ -11,9 +11,15 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const redirectTarget = computed(() => normalizeAuthRedirect(route.query.redirect))
+const authMessage = computed(() => {
+  if (route.query.reason === 'expired') {
+    return 'Login has expired. Please sign in again.'
+  }
+  return userStore.auth.error
+})
 
 onMounted(async () => {
-  await userStore.initializeAuth(true)
+  await userStore.initializeAuth()
   if (userStore.authEnabled && userStore.isAuthenticated) {
     await router.replace(redirectTarget.value)
   }
@@ -48,9 +54,9 @@ async function continueLocal() {
         </p>
       </div>
 
-      <div v-if="userStore.auth.error" class="login-alert">
+      <div v-if="authMessage" class="login-alert">
         <div i-solar:danger-circle-bold-duotone />
-        <span>{{ userStore.auth.error }}</span>
+        <span>{{ authMessage }}</span>
       </div>
 
       <Button
