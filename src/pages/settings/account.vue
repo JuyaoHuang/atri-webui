@@ -7,6 +7,10 @@ import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const signOutIcon = 'i-solar:logout-3-bold-duotone'
+const signInIcon = 'i-solar:login-3-bold-duotone'
+const resetIcon = 'i-solar:restart-bold-duotone'
+const saveIcon = 'i-solar:diskette-bold-duotone'
 
 const nickname = ref(userStore.settings.nickname)
 const avatar = ref(userStore.settings.avatar)
@@ -95,14 +99,14 @@ async function signOut() {
         <Button
           v-if="userStore.authEnabled && userStore.isAuthenticated"
           variant="secondary"
-          icon="i-solar:logout-3-bold-duotone"
+          :icon="signOutIcon"
           label="Sign out"
           :loading="userStore.auth.loading"
           @click="signOut"
         />
         <Button
           v-else-if="userStore.authEnabled"
-          icon="i-solar:login-3-bold-duotone"
+          :icon="signInIcon"
           label="Sign in"
           :loading="userStore.auth.loading"
           @click="signIn"
@@ -134,12 +138,12 @@ async function signOut() {
       <div class="profile-actions">
         <Button
           variant="secondary"
-          icon="i-solar:restart-bold-duotone"
+          :icon="resetIcon"
           label="Reset"
           @click="resetLocalProfile"
         />
         <Button
-          icon="i-solar:diskette-bold-duotone"
+          :icon="saveIcon"
           label="Save"
           :disabled="!dirty"
           @click="saveLocalProfile"

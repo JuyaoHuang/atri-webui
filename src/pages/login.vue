@@ -9,6 +9,8 @@ import { normalizeAuthRedirect, saveAuthRedirect } from '@/utils/authRedirect'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const githubLoginIcon = 'i-solar:login-3-bold-duotone'
+const localHomeIcon = 'i-solar:home-2-bold-duotone'
 
 const redirectTarget = computed(() => normalizeAuthRedirect(route.query.redirect))
 const authMessage = computed(() => {
@@ -62,7 +64,7 @@ async function continueLocal() {
       <Button
         v-if="userStore.authEnabled"
         block
-        icon="i-solar:login-3-bold-duotone"
+        :icon="githubLoginIcon"
         label="Continue with GitHub"
         :loading="userStore.auth.loading"
         @click="signIn"
@@ -72,7 +74,7 @@ async function continueLocal() {
         v-else
         block
         variant="secondary"
-        icon="i-solar:home-2-bold-duotone"
+        :icon="localHomeIcon"
         label="Continue locally"
         :loading="userStore.auth.loading"
         @click="continueLocal"

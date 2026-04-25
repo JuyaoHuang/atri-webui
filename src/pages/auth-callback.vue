@@ -11,6 +11,8 @@ type CallbackState = 'loading' | 'error' | 'disabled'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const loginIcon = 'i-solar:login-3-bold-duotone'
+const homeIcon = 'i-solar:home-2-bold-duotone'
 
 const state = ref<CallbackState>('loading')
 const message = ref('Completing sign-in...')
@@ -88,7 +90,7 @@ async function goHome() {
       <Button
         v-if="state === 'error'"
         block
-        icon="i-solar:login-3-bold-duotone"
+        :icon="loginIcon"
         label="Back to sign in"
         @click="goToLogin"
       />
@@ -97,7 +99,7 @@ async function goHome() {
         v-else-if="state === 'disabled'"
         block
         variant="secondary"
-        icon="i-solar:home-2-bold-duotone"
+        :icon="homeIcon"
         label="Continue locally"
         @click="goHome"
       />
