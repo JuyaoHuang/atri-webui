@@ -31,14 +31,14 @@ function createSettingsMeta(config: SettingsMetaConfig) {
 const settingsChildren: RouteRecordRaw[] = [
   {
     path: 'account',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/account.vue'),
     meta: createSettingsMeta({
       order: 1,
       title: '账户设置',
       description: '管理账户与登录状态',
       icon: 'i-solar:user-circle-bold-duotone',
       phase: 'Phase 11',
-      status: 'developing',
+      status: 'active',
     }),
   },
   {
