@@ -17,13 +17,44 @@ interface EnqueueOptions {
 const queue = ref<QueueItem[]>([])
 const current = ref<QueueItem | null>(null)
 const isPlaying = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
 const error = ref<string | null>(null)
 let audio: HTMLAudioElement | null = null
+
+function finiteTime(value: number) {
+  return Number.isFinite(value) && value > 0 ? value : 0
+}
+
+function syncPlaybackPosition() {
+  if (!audio) {
+    currentTime.value = 0
+    duration.value = 0
+    return
+  }
+  currentTime.value = finiteTime(audio.currentTime)
+  duration.value = finiteTime(audio.duration)
+}
+
+function resetPlaybackPosition() {
+  currentTime.value = 0
+  duration.value = 0
+}
 
 function ensureAudio() {
   if (!audio && typeof Audio !== 'undefined') {
     audio = new Audio()
     audio.onended = () => finishCurrent()
+    audio.onloadedmetadata = syncPlaybackPosition
+    audio.ondurationchange = syncPlaybackPosition
+    audio.ontimeupdate = syncPlaybackPosition
+    audio.onplay = () => {
+      isPlaying.value = true
+    }
+    audio.onpause = () => {
+      isPlaying.value = false
+      syncPlaybackPosition()
+    }
     audio.onerror = () => {
       error.value = 'Audio playback failed'
       finishCurrent()
@@ -61,6 +92,7 @@ async function playNext() {
 
   const ttsStore = useTTSStore()
   current.value = item
+  resetPlaybackPosition()
   player.src = item.url
   player.volume = Math.min(1, Math.max(0, ttsStore.outputVolume))
 
@@ -77,6 +109,7 @@ function finishCurrent() {
   const finished = current.value
   current.value = null
   isPlaying.value = false
+  resetPlaybackPosition()
   revokeItem(finished)
   void playNext()
 }
@@ -140,6 +173,20 @@ export function useAudioPlayer() {
     current.value = null
     queue.value = []
     isPlaying.value = false
+    resetPlaybackPosition()
+  }
+
+  function seek(time: number) {
+    if (!audio || !current.value) {
+      return
+    }
+
+    const max = duration.value || finiteTime(audio.duration)
+    const target = max > 0
+      ? Math.min(max, Math.max(0, time))
+      : Math.max(0, time)
+    audio.currentTime = target
+    currentTime.value = target
   }
 
   return {
@@ -147,10 +194,15 @@ export function useAudioPlayer() {
     current: computed(() => current.value),
     isPlaying: computed(() => isPlaying.value),
     isBusy: computed(() => isPlaying.value || Boolean(current.value) || ttsStore.synthesizing),
+    currentTime: computed(() => currentTime.value),
+    duration: computed(() => duration.value),
+    progress: computed(() => duration.value > 0 ? Math.min(100, (currentTime.value / duration.value) * 100) : 0),
+    canSeek: computed(() => Boolean(current.value) && duration.value > 0),
     error: computed(() => error.value || ttsStore.error),
     enqueueText,
     pause,
     resume,
-    stop
+    stop,
+    seek
   }
 }
