@@ -57,10 +57,13 @@ const outputVolume = computed({
 
 const activeProvider = computed(() => ttsStore.activeProvider)
 const activeConfig = computed(() => ttsStore.activeProviderConfig)
-const voiceModelProviders = new Set(['siliconflow_tts', 'cosyvoice3_tts'])
+const voiceModelProviders = new Set(['edge_tts', 'siliconflow_tts', 'cosyvoice3_tts'])
 
 const selectedVoice = computed({
   get: () => {
+    if (activeProviderName.value === 'edge_tts') {
+      return configString('voice', 'zh-CN-XiaoxiaoNeural')
+    }
     if (activeProviderName.value === 'siliconflow_tts') {
       return configString('default_voice', 'FunAudioLLM/CosyVoice2-0.5B:claire')
     }
@@ -70,6 +73,10 @@ const selectedVoice = computed({
     return ''
   },
   set: (value: string) => {
+    if (activeProviderName.value === 'edge_tts') {
+      void updateActiveProviderConfig({ voice: value })
+      return
+    }
     if (activeProviderName.value === 'siliconflow_tts') {
       void updateActiveProviderConfig({ default_voice: value })
       return
@@ -267,6 +274,13 @@ onMounted(async () => {
         </h2>
 
         <div v-if="activeProviderName === 'edge_tts'" flex="~ col gap-4">
+          <FieldComboboxSelect
+            v-model="selectedVoice"
+            label="Voice model"
+            description="Edge neural voice id."
+            :options="voiceOptions"
+            layout="vertical"
+          />
           <div class="grid gap-2">
             <label class="text-sm font-medium">Rate</label>
             <input

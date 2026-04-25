@@ -16,6 +16,7 @@ const DEFAULT_CONFIG: TTSConfig = {
   show_player_on_home: false,
   volume: 1,
   edge_tts: {
+    voice: 'zh-CN-XiaoxiaoNeural',
     rate: '+0%'
   },
   gpt_sovits_tts: {},
@@ -32,7 +33,7 @@ const DEFAULT_CONFIG: TTSConfig = {
 
 let loadPromise: Promise<void> | null = null
 const PROVIDER_WRITE_ALLOWLISTS: Record<string, Set<string>> = {
-  edge_tts: new Set(['rate']),
+  edge_tts: new Set(['voice', 'rate']),
   gpt_sovits_tts: new Set(),
   siliconflow_tts: new Set(['default_voice', 'stream']),
   cosyvoice3_tts: new Set(['sft_dropdown', 'stream', 'speed'])
@@ -177,13 +178,19 @@ export const useTTSStore = defineStore('tts', {
     },
 
     async loadVoices(provider?: string) {
+      const requestedProvider = provider || this.config.tts_model
       this.error = null
+      this.voices = []
       try {
-        const response = await ttsApi.getVoices(provider || this.config.tts_model)
-        this.voices = response.voices
+        const response = await ttsApi.getVoices(requestedProvider)
+        if (requestedProvider === this.config.tts_model) {
+          this.voices = response.voices
+        }
       } catch (error) {
-        this.voices = []
-        this.error = errorMessage(error)
+        if (requestedProvider === this.config.tts_model) {
+          this.voices = []
+          this.error = errorMessage(error)
+        }
       }
     },
 
