@@ -3,6 +3,9 @@ import { defineStore } from 'pinia'
 import { asrApi } from '@/api/asr'
 import type { ASRConfig, ASRProviderConfig, ASRProviderStatus } from '@/api/types'
 
+const ENABLED_STORAGE_KEY = 'settings/hearing/enabled'
+const AUDIO_INPUT_STORAGE_KEY = 'settings/hearing/audio-input'
+
 const DEFAULT_CONFIG: ASRConfig = {
   asr_model: 'web_speech_api',
   auto_send: {
@@ -41,6 +44,7 @@ const DEFAULT_CONFIG: ASRConfig = {
 }
 
 export interface ASRState {
+  enabled: boolean
   config: ASRConfig
   providers: ASRProviderStatus[]
   audioInputs: MediaDeviceInfo[]
@@ -71,10 +75,11 @@ function errorMessage(error: unknown): string {
 
 export const useASRStore = defineStore('asr', {
   state: (): ASRState => ({
+    enabled: localStorage.getItem(ENABLED_STORAGE_KEY) !== 'false',
     config: cloneConfig(DEFAULT_CONFIG),
     providers: [],
     audioInputs: [],
-    selectedAudioInput: localStorage.getItem('settings/hearing/audio-input') || '',
+    selectedAudioInput: localStorage.getItem(AUDIO_INPUT_STORAGE_KEY) || '',
     loading: false,
     saving: false,
     error: null
@@ -98,6 +103,10 @@ export const useASRStore = defineStore('asr', {
 
     autoSendDelay(state): number {
       return Number(state.config.auto_send?.delay_ms ?? 2000)
+    },
+
+    moduleEnabled(state): boolean {
+      return state.enabled
     },
 
     configured(state): boolean {
@@ -181,6 +190,11 @@ export const useASRStore = defineStore('asr', {
       })
     },
 
+    setEnabled(value: boolean) {
+      this.enabled = value
+      localStorage.setItem(ENABLED_STORAGE_KEY, String(value))
+    },
+
     async loadAudioInputs() {
       if (!navigator.mediaDevices?.enumerateDevices) {
         this.audioInputs = []
@@ -200,7 +214,7 @@ export const useASRStore = defineStore('asr', {
 
     setSelectedAudioInput(deviceId: string) {
       this.selectedAudioInput = deviceId
-      localStorage.setItem('settings/hearing/audio-input', deviceId)
+      localStorage.setItem(AUDIO_INPUT_STORAGE_KEY, deviceId)
     }
   }
 })

@@ -99,6 +99,11 @@ export function useVoiceInput(options: VoiceInputOptions = {}) {
     error.value = null
     interimText.value = ''
 
+    if (!asrStore.moduleEnabled) {
+      error.value = 'ASR module is disabled'
+      return
+    }
+
     if (activeProvider.value?.supports_browser_streaming) {
       startWebSpeech()
       return

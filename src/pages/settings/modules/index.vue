@@ -43,7 +43,7 @@ const modulesList = computed<ModuleItem[]>(() => [
     description: '调整语音识别链路、输入设备与转写策略。',
     icon: 'i-solar:microphone-3-bold-duotone',
     to: '/settings/modules/hearing',
-    configured: asrStore.configured,
+    configured: asrStore.moduleEnabled && asrStore.configured,
   },
   {
     id: 'vision',

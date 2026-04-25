@@ -62,7 +62,7 @@ function clearAutoSendTimer() {
 
 function scheduleAutoSend() {
   clearAutoSendTimer()
-  if (!asrStore.autoSendEnabled || !hasText.value || isStreaming.value) {
+  if (!asrStore.moduleEnabled || !asrStore.autoSendEnabled || !hasText.value || isStreaming.value) {
     return
   }
 
@@ -143,9 +143,11 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(
-  () => [asrStore.autoSendEnabled, asrStore.autoSendDelay, isStreaming.value] as const,
+  () => [asrStore.moduleEnabled, asrStore.autoSendEnabled, asrStore.autoSendDelay, isStreaming.value] as const,
   () => {
-    if (autoSendPending.value) {
+    if (!asrStore.moduleEnabled) {
+      clearAutoSendTimer()
+    } else if (autoSendPending.value) {
       scheduleAutoSend()
     }
   }
@@ -240,7 +242,7 @@ onUnmounted(() => {
             </DropdownMenuPortal>
           </DropdownMenuRoot>
 
-          <VoiceInput compact @transcript="handleTranscript" />
+          <VoiceInput v-if="asrStore.moduleEnabled" compact @transcript="handleTranscript" />
         </div>
       </div>
       <div class="input-actions flex shrink-0 flex-col items-center justify-end gap-2">

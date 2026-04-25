@@ -9,6 +9,7 @@ import AiriTestDummyMarker from '@/components/hearing/AiriTestDummyMarker.vue'
 import AiriThresholdMeter from '@/components/hearing/AiriThresholdMeter.vue'
 import AiriTimeSeriesChart from '@/components/hearing/AiriTimeSeriesChart.vue'
 import Button from '@/components/airi-ui/Button.vue'
+import Checkbox from '@/components/airi-ui/Checkbox.vue'
 import FieldCheckbox from '@/components/airi-ui/FieldCheckbox.vue'
 import FieldComboboxSelect from '@/components/airi-ui/FieldComboboxSelect.vue'
 import FieldRange from '@/components/airi-ui/FieldRange.vue'
@@ -105,6 +106,7 @@ const statusIconClass = computed(() => isTranscribing.value
   : 'i-solar:info-circle-bold-duotone text-sm'
 )
 const infoIconClass = 'i-solar:info-circle-bold-duotone text-sm'
+const moduleToggleIconClass = 'i-solar:microphone-bold-duotone h-5 w-5'
 const speakingIndicatorClass = computed(() => audioLevel.isSpeech.value
   ? 'bg-green-500 shadow-lg shadow-green-500/50'
   : audioLevel.normalizedVolume.value > audioLevel.threshold.value * 0.55
@@ -201,6 +203,11 @@ async function stopAudioMonitoring() {
 
 async function toggleMonitoring() {
   testError.value = ''
+  if (!asrStore.moduleEnabled) {
+    testError.value = 'ASR module is disabled'
+    return
+  }
+
   if (isMonitoring.value) {
     await stopAudioMonitoring()
     return
@@ -313,6 +320,11 @@ async function startSTTTest() {
   statusMessage.value = ''
 
   try {
+    if (!asrStore.moduleEnabled) {
+      testError.value = 'ASR module is disabled'
+      return
+    }
+
     if (shouldUseBrowserSpeech.value) {
       startWebSpeechTest()
       return
@@ -359,6 +371,13 @@ watch(() => asrStore.selectedAudioInput, async () => {
   }
 })
 
+watch(() => asrStore.moduleEnabled, (enabled) => {
+  if (!enabled) {
+    void stopAudioMonitoring()
+    void stopSTTTest()
+  }
+})
+
 onMounted(async () => {
   await asrStore.load()
   await asrStore.loadAudioInputs()
@@ -385,6 +404,23 @@ onUnmounted(() => {
           layout="vertical"
         />
       </div>
+
+      <label class="asr-module-toggle">
+        <div class="asr-module-toggle__icon">
+          <div :class="moduleToggleIconClass" />
+        </div>
+        <div class="asr-module-toggle__copy">
+          <span class="asr-module-toggle__label">ASR Module</span>
+          <span class="asr-module-toggle__hint">
+            {{ asrStore.moduleEnabled ? 'Voice input is enabled' : 'Voice input is disabled' }}
+          </span>
+        </div>
+        <Checkbox
+          class="asr-module-toggle__switch"
+          :model-value="asrStore.moduleEnabled"
+          @update:model-value="value => asrStore.setEnabled(value)"
+        />
+      </label>
 
       <div flex="~ col gap-4">
         <div>
@@ -574,7 +610,7 @@ onUnmounted(() => {
 
         <AiriErrorContainer v-if="testError || audioLevel.error.value" title="Error occurred" :error="testError || audioLevel.error.value" mb-4 />
 
-        <Button class="mb-4" block @click="toggleMonitoring">
+        <Button class="mb-4" block :disabled="!asrStore.moduleEnabled" @click="toggleMonitoring">
           {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
         </Button>
 
@@ -638,7 +674,7 @@ onUnmounted(() => {
 
         <div class="flex items-center gap-2">
           <Button
-            :disabled="isTranscribing || (!shouldUseBrowserSpeech && !canUseBackendTranscription)"
+            :disabled="!asrStore.moduleEnabled || isTranscribing || (!shouldUseBrowserSpeech && !canUseBackendTranscription)"
             class="flex-1"
             @click="isTesting ? stopSTTTest() : startSTTTest()"
           >
@@ -696,3 +732,80 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.asr-module-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 4.25rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgb(255 255 255 / 0.78);
+  border-radius: 1rem;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.9), rgb(240 252 255 / 0.78));
+  box-shadow:
+    0 12px 30px rgb(0 129 179 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.asr-module-toggle__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  border-radius: 0.85rem;
+  color: #0081b3;
+  background: rgb(152 236 255 / 0.3);
+}
+
+.asr-module-toggle__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.asr-module-toggle__label {
+  color: #0071a0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.asr-module-toggle__hint {
+  color: rgb(0 129 179 / 0.66);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.asr-module-toggle__switch {
+  flex: 0 0 auto;
+}
+
+.dark .asr-module-toggle {
+  border-color: rgb(41 189 226 / 0.25);
+  background:
+    linear-gradient(135deg, rgb(0 51 69 / 0.78), rgb(0 24 32 / 0.72));
+  box-shadow:
+    0 12px 30px rgb(0 0 0 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+.dark .asr-module-toggle__icon {
+  color: #c5fcff;
+  background: rgb(41 189 226 / 0.18);
+}
+
+.dark .asr-module-toggle__label {
+  color: #c5fcff;
+}
+
+.dark .asr-module-toggle__hint {
+  color: rgb(197 252 255 / 0.64);
+}
+</style>
