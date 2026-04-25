@@ -2,7 +2,13 @@ import { defineStore } from 'pinia'
 
 import { authApi } from '@/api/auth'
 import type { AuthUserResponse } from '@/api/types'
-import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from '@/utils/authToken'
+import {
+  clearStoredAuthToken,
+  getStoredAuthToken,
+  getStoredSignedInAt,
+  setStoredAuthToken,
+  setStoredSignedInAt
+} from '@/utils/authToken'
 
 export interface UserSettings {
   nickname: string
@@ -14,6 +20,7 @@ export interface AuthSessionState {
   initialized: boolean
   loading: boolean
   token: string | null
+  signedInAt: string | null
   user: AuthUserResponse | null
   error: string | null
 }
@@ -43,6 +50,7 @@ export const useUserStore = defineStore('user', {
       initialized: false,
       loading: false,
       token: getStoredAuthToken(),
+      signedInAt: getStoredSignedInAt(),
       user: null,
       error: null
     }
@@ -84,6 +92,7 @@ export const useUserStore = defineStore('user', {
       this.auth.loading = true
       this.auth.error = null
       this.auth.token = getStoredAuthToken()
+      this.auth.signedInAt = getStoredSignedInAt()
 
       try {
         const status = await authApi.status()
@@ -104,6 +113,7 @@ export const useUserStore = defineStore('user', {
         } catch {
           clearStoredAuthToken()
           this.auth.token = null
+          this.auth.signedInAt = null
           this.auth.user = null
           this.auth.error = 'Login has expired. Please sign in again.'
         }
@@ -159,7 +169,10 @@ export const useUserStore = defineStore('user', {
       fallbackUser?: Pick<AuthUserResponse, 'username' | 'avatar_url'>
     ) {
       setStoredAuthToken(token)
+      const signedInAt = new Date().toISOString()
+      setStoredSignedInAt(signedInAt)
       this.auth.token = token
+      this.auth.signedInAt = signedInAt
       this.auth.enabled = true
       this.auth.error = null
 
@@ -177,6 +190,7 @@ export const useUserStore = defineStore('user', {
       } catch (error) {
         clearStoredAuthToken()
         this.auth.token = null
+        this.auth.signedInAt = null
         this.auth.user = null
         this.auth.error = getErrorMessage(error)
         throw error
@@ -196,6 +210,7 @@ export const useUserStore = defineStore('user', {
       } finally {
         clearStoredAuthToken()
         this.auth.token = null
+        this.auth.signedInAt = null
         this.auth.user = this.auth.enabled ? null : DEFAULT_AUTH_USER
         this.auth.loading = false
       }

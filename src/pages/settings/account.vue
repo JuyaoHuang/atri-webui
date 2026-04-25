@@ -30,6 +30,12 @@ const sessionDetail = computed(() => {
 })
 
 const avatarPreview = computed(() => userStore.avatarUrl)
+const signedInLabel = computed(() => {
+  if (!userStore.auth.signedInAt) {
+    return null
+  }
+  return new Date(userStore.auth.signedInAt).toLocaleString()
+})
 
 onMounted(async () => {
   await userStore.initializeAuth()
@@ -80,6 +86,9 @@ async function signOut() {
         </p>
         <h2>{{ userStore.displayName }}</h2>
         <p>{{ sessionDetail }}</p>
+        <p v-if="signedInLabel" class="account-signed-in">
+          Signed in {{ signedInLabel }}
+        </p>
       </div>
 
       <div class="account-summary__actions">
@@ -214,6 +223,12 @@ async function signOut() {
   line-height: 1.5;
 }
 
+.account-summary__copy .account-signed-in {
+  margin-top: 0.25rem;
+  color: rgb(115 115 115);
+  font-size: 0.875rem;
+}
+
 .account-summary__actions,
 .profile-actions {
   display: flex;
@@ -278,6 +293,10 @@ async function signOut() {
 .dark .section-heading p,
 .dark .profile-grid label {
   color: rgb(212 212 212);
+}
+
+.dark .account-summary__copy .account-signed-in {
+  color: rgb(163 163 163);
 }
 
 .dark .profile-grid input {
