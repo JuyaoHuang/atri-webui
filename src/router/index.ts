@@ -2,6 +2,9 @@ import type { RouteRecordRaw } from 'vue-router'
 
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useUserStore } from '@/stores/user'
+import { normalizeAuthRedirect } from '@/utils/authRedirect'
+
 interface SettingsMetaConfig {
   order: number
   title: string
@@ -190,6 +193,24 @@ const settingsChildren: RouteRecordRaw[] = [
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/pages/login.vue'),
+    meta: {
+      public: true,
+      title: 'Sign in',
+    },
+  },
+  {
+    path: '/auth/callback',
+    name: 'auth-callback',
+    component: () => import('@/pages/auth-callback.vue'),
+    meta: {
+      public: true,
+      title: 'Sign-in callback',
+    },
+  },
+  {
     path: '/',
     name: 'home',
     component: () => import('@/pages/index.vue'),
@@ -209,6 +230,34 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+})
+
+router.beforeEach(async (to) => {
+  const userStore = useUserStore()
+  await userStore.initializeAuth()
+
+  if (!userStore.authEnabled) {
+    if (to.path === '/login' || to.path === '/auth/callback') {
+      return '/'
+    }
+    return true
+  }
+
+  if (to.meta.public) {
+    if (to.path === '/login' && userStore.isAuthenticated) {
+      return normalizeAuthRedirect(to.query.redirect)
+    }
+    return true
+  }
+
+  if (!userStore.isAuthenticated) {
+    return {
+      path: '/login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  return true
 })
 
 export default router
