@@ -5,6 +5,17 @@ import { useChatStore } from '@/stores/chat'
 import { useCharactersStore } from '@/stores/characters'
 import { useChatsStore } from '@/stores/chats'
 
+interface Props {
+  autoSelectFirst?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  autoSelectFirst: true,
+})
+const emit = defineEmits<{
+  createChat: [characterId: string]
+  selectChat: [chatId: string]
+}>()
 const chatsStore = useChatsStore()
 const charactersStore = useCharactersStore()
 const chatStore = useChatStore()
@@ -30,7 +41,7 @@ watch(
         return
       }
 
-      if (chats.length > 0) {
+      if (chats.length > 0 && props.autoSelectFirst) {
         chatStore.setCurrentChat(chats[0].id, characterId)
       }
     }
@@ -64,12 +75,14 @@ const handleCreateChat = async () => {
   }
 
   chatStore.prepareNewChat(characterId)
+  emit('createChat', characterId)
 }
 
 const handleSelectChat = (chatId: string) => {
   const characterId = charactersStore.activeCharacterId
   if (characterId) {
     chatStore.setCurrentChat(chatId, characterId)
+    emit('selectChat', chatId)
   }
 }
 
@@ -183,7 +196,7 @@ const formatDate = (dateString: string) => {
 
     <div v-if="chatsStore.loading" class="section-meta text-sm">加载中...</div>
 
-    <div v-else-if="sortedChats.length === 0" class="section-meta text-sm">暂无聊天记录</div>
+    <div v-else-if="sortedChats.length === 0" class="section-meta text-sm">暂无聊天记录，请点击“新建聊天”。</div>
 
     <div v-else class="space-y-2 overflow-y-auto flex-1">
       <div

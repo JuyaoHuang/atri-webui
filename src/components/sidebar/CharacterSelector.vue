@@ -5,6 +5,9 @@ import { useCharactersStore } from '@/stores/characters'
 import { resolveAvatarUrl } from '@/utils/avatar'
 
 const charactersStore = useCharactersStore()
+const emit = defineEmits<{
+  select: [characterId: string]
+}>()
 
 onMounted(() => {
   charactersStore.fetchCharacters()
@@ -12,6 +15,7 @@ onMounted(() => {
 
 const handleSelectCharacter = (characterId: string) => {
   charactersStore.setActiveCharacter(characterId)
+  emit('select', characterId)
 }
 
 const getAvatarSrc = (avatar?: string, avatarUrl?: string) => {
