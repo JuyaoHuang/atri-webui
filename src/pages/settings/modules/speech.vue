@@ -57,7 +57,7 @@ const outputVolume = computed({
 
 const activeProvider = computed(() => ttsStore.activeProvider)
 const activeConfig = computed(() => ttsStore.activeProviderConfig)
-const voiceModelProviders = new Set(['edge_tts', 'siliconflow_tts', 'cosyvoice3_tts'])
+const voiceModelProviders = new Set(['edge_tts', 'siliconflow_tts'])
 
 const selectedVoice = computed({
   get: () => {
@@ -80,9 +80,6 @@ const selectedVoice = computed({
     if (activeProviderName.value === 'siliconflow_tts') {
       void updateActiveProviderConfig({ default_voice: value })
       return
-    }
-    if (activeProviderName.value === 'cosyvoice3_tts') {
-      void updateActiveProviderConfig({ sft_dropdown: value })
     }
   }
 })
@@ -309,13 +306,15 @@ onMounted(async () => {
         </div>
 
         <div v-else-if="activeProviderName === 'cosyvoice3_tts'" flex="~ col gap-4">
-          <FieldComboboxSelect
-            v-model="selectedVoice"
-            label="Voice model"
-            description="CosyVoice SFT voice."
-            :options="voiceOptions"
-            layout="vertical"
-          />
+          <div class="grid gap-2">
+            <label class="text-sm font-medium">Model</label>
+            <input
+              class="cursor-not-allowed rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-500 outline-none dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400"
+              :value="configString('sft_dropdown', '中文女')"
+              readonly
+              disabled
+            >
+          </div>
           <FieldCheckbox
             :model-value="configBoolean('stream', false)"
             label="Request streaming mode"

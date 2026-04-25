@@ -1,4 +1,5 @@
 import client from './client'
+import type { AxiosError } from 'axios'
 import type {
   TTSConfig,
   TTSConfigResponse,
@@ -12,6 +13,11 @@ export interface TTSAudioResponse {
   blob: Blob
   mediaType: string
   provider?: string
+}
+
+function isRetryableTtsError(error: unknown): boolean {
+  const status = (error as AxiosError | undefined)?.response?.status
+  return !status || status === 429 || status >= 500
 }
 
 export const ttsApi = {
@@ -48,16 +54,27 @@ export const ttsApi = {
   },
 
   async synthesize(payload: TTSSynthesisRequest): Promise<TTSAudioResponse> {
-    const response = await client.post<Blob>('/api/tts/synthesize', payload, {
-      responseType: 'blob',
-      timeout: 120000
-    })
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await client.post<Blob>('/api/tts/synthesize', payload, {
+          responseType: 'blob',
+          timeout: 120000
+        })
 
-    const mediaType = String(response.headers['content-type'] || payload.options?.media_type || 'audio/mpeg')
-    return {
-      blob: response.data,
-      mediaType,
-      provider: String(response.headers['x-tts-provider'] || payload.provider || '')
+        const mediaType = String(response.headers['content-type'] || payload.options?.media_type || 'audio/mpeg')
+        return {
+          blob: response.data,
+          mediaType,
+          provider: String(response.headers['x-tts-provider'] || payload.provider || '')
+        }
+      } catch (error) {
+        if (attempt === 0 && isRetryableTtsError(error)) {
+          continue
+        }
+        throw error
+      }
     }
+
+    throw new Error('TTS synthesis failed')
   }
 }

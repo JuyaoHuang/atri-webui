@@ -36,7 +36,7 @@ const PROVIDER_WRITE_ALLOWLISTS: Record<string, Set<string>> = {
   edge_tts: new Set(['voice', 'rate']),
   gpt_sovits_tts: new Set(),
   siliconflow_tts: new Set(['default_voice', 'stream']),
-  cosyvoice3_tts: new Set(['sft_dropdown', 'stream', 'speed'])
+  cosyvoice3_tts: new Set(['stream', 'speed'])
 }
 
 export interface TTSState {
