@@ -32,6 +32,14 @@ const togglePanel = (mode: Exclude<PanelMode, null>) => {
   panelMode.value = panelMode.value === mode ? null : mode
 }
 
+const closePanel = () => {
+  panelMode.value = null
+}
+
+const handleCharacterSelected = () => {
+  panelMode.value = 'history'
+}
+
 onMounted(() => {
   connect()
 })
@@ -94,8 +102,13 @@ watch(
       <Transition name="panel-slide">
         <div v-if="panelMode" class="stage-control-panel">
           <div class="stage-control-panel__inner">
-            <ChatHistory v-if="panelMode === 'history'" />
-            <CharacterSelector v-else />
+            <ChatHistory
+              v-if="panelMode === 'history'"
+              :auto-select-first="false"
+              @create-chat="closePanel"
+              @select-chat="closePanel"
+            />
+            <CharacterSelector v-else @select="handleCharacterSelected" />
           </div>
         </div>
       </Transition>

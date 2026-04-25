@@ -131,6 +131,8 @@ watch(
 
 .stage-chat-empty-state {
   margin-top: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   color: rgb(0 129 179 / 0.66);
   line-height: 1.7;
 }

@@ -56,6 +56,54 @@ export interface Live2DExpressionResponse {
 }
 
 // 聊天相关
+// ASR related
+export interface ASRAutoSendConfig {
+  enabled: boolean
+  delay_ms: number
+}
+
+export type ASRProviderConfig = Record<string, string | number | boolean | null | undefined>
+
+export interface ASRConfig {
+  asr_model: string
+  auto_send: ASRAutoSendConfig
+  web_speech_api?: ASRProviderConfig
+  faster_whisper?: ASRProviderConfig
+  whisper_cpp?: ASRProviderConfig
+  whisper?: ASRProviderConfig
+  openai_whisper?: ASRProviderConfig
+  [key: string]: string | ASRAutoSendConfig | ASRProviderConfig | undefined
+}
+
+export interface ASRProviderStatus {
+  name: string
+  display_name: string
+  provider_type: string
+  description: string
+  active: boolean
+  available: boolean
+  reason?: string | null
+  supports_backend_transcription: boolean
+  supports_browser_streaming: boolean
+  config: ASRProviderConfig
+}
+
+export interface ASRConfigResponse {
+  config: ASRConfig
+  providers: ASRProviderStatus[]
+}
+
+export interface ASRHealthResponse {
+  active_provider: string
+  active_available: boolean
+  providers: ASRProviderStatus[]
+}
+
+export interface ASRTranscriptionResponse {
+  provider: string
+  text: string
+}
+
 export interface ChatListParams {
   character_id?: string
   user_id?: string

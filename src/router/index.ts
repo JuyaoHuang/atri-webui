@@ -9,6 +9,7 @@ interface SettingsMetaConfig {
   icon: string
   phase: string
   status: 'active' | 'developing'
+  settingsEntry?: boolean
 }
 
 function createSettingsMeta(config: SettingsMetaConfig) {
@@ -19,7 +20,7 @@ function createSettingsMeta(config: SettingsMetaConfig) {
     icon: config.icon,
     phase: config.phase,
     status: config.status,
-    settingsEntry: true,
+    settingsEntry: config.settingsEntry ?? true,
     order: config.order,
   }
 }
@@ -31,7 +32,7 @@ const settingsChildren: RouteRecordRaw[] = [
     meta: createSettingsMeta({
       order: 1,
       title: '账户设置',
-      description: '管理账户、登录状态与个人资料偏好。',
+      description: '管理账户与登录状态',
       icon: 'i-solar:user-circle-bold-duotone',
       phase: 'Phase 11',
       status: 'developing',
@@ -43,9 +44,21 @@ const settingsChildren: RouteRecordRaw[] = [
     meta: createSettingsMeta({
       order: 2,
       title: '角色卡管理',
-      description: '创建、编辑、导入导出角色卡，并管理角色头像与提示词。',
+      description: '配置你的 ATRI，并管理她的头像与提示词',
       icon: 'i-solar:card-bold-duotone',
       phase: 'Phase 7',
+      status: 'active',
+    }),
+  },
+  {
+    path: 'modules',
+    component: () => import('@/pages/settings/modules/index.vue'),
+    meta: createSettingsMeta({
+      order: 3,
+      title: '机体模块',
+      description: '意识，视觉，言语模块等五感配置',
+      icon: 'i-solar:layers-bold-duotone',
+      phase: 'Phase 9-10',
       status: 'active',
     }),
   },
@@ -53,55 +66,59 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'modules/consciousness',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 3,
+      order: 31,
       title: 'LLM 配置',
       description: '管理模型推理、提示词和认知模块参数。',
-      icon: 'i-solar:cpu-bolt-bold-duotone',
+      icon: 'i-solar:ghost-bold-duotone',
       phase: 'Phase 7',
       status: 'developing',
+      settingsEntry: false,
     }),
   },
   {
     path: 'modules/speech',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 4,
+      order: 32,
       title: 'TTS 配置',
       description: '设置语音合成模型、音色与输出行为。',
-      icon: 'i-solar:soundwave-bold-duotone',
+      icon: 'i-solar:user-speak-rounded-bold-duotone',
       phase: 'Phase 10',
       status: 'developing',
+      settingsEntry: false,
     }),
   },
   {
     path: 'modules/hearing',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/modules/hearing.vue'),
     meta: createSettingsMeta({
-      order: 5,
+      order: 33,
       title: 'ASR 配置',
       description: '调整语音识别链路、输入设备与转写策略。',
       icon: 'i-solar:microphone-3-bold-duotone',
       phase: 'Phase 9',
-      status: 'developing',
+      status: 'active',
+      settingsEntry: false,
     }),
   },
   {
     path: 'modules/vision',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 6,
+      order: 34,
       title: '视觉模块',
       description: '配置视觉感知能力、图像输入与扩展能力。',
-      icon: 'i-solar:eye-bold-duotone',
+      icon: 'i-solar:eye-closed-bold-duotone',
       phase: 'Future',
       status: 'developing',
+      settingsEntry: false,
     }),
   },
   {
     path: 'scene',
     component: () => import('@/pages/settings/scene.vue'),
     meta: createSettingsMeta({
-      order: 7,
+      order: 4,
       title: '场景设置',
       description: '自定义聊天背景、透明度和模糊效果。',
       icon: 'i-solar:armchair-2-bold-duotone',
@@ -113,7 +130,7 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'models',
     component: () => import('@/pages/settings/models.vue'),
     meta: createSettingsMeta({
-      order: 8,
+      order: 5,
       title: '角色模型',
       description: '启用 Live2D 舞台、管理模型资源，并调整模型在主页中的位置与尺寸。',
       icon: 'i-solar:database-bold-duotone',
@@ -125,7 +142,7 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'providers',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 9,
+      order: 6,
       title: 'Provider 配置',
       description: '管理模型服务商、密钥和路由策略。',
       icon: 'i-solar:server-square-cloud-bold-duotone',
@@ -137,7 +154,7 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'data',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 10,
+      order: 7,
       title: '数据管理',
       description: '查看缓存、资源文件和持久化数据状态。',
       icon: 'i-solar:database-bold-duotone',
@@ -149,7 +166,7 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'connection',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 11,
+      order: 8,
       title: '连接设置',
       description: '管理连接端点、网络状态与设备联通性。',
       icon: 'i-solar:server-square-cloud-bold-duotone',
@@ -161,7 +178,7 @@ const settingsChildren: RouteRecordRaw[] = [
     path: 'system',
     component: () => import('@/pages/settings/placeholder.vue'),
     meta: createSettingsMeta({
-      order: 12,
+      order: 9,
       title: '系统设置',
       description: '集中管理系统偏好、交互行为和实验选项。',
       icon: 'i-solar:settings-bold-duotone',
