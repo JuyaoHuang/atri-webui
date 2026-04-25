@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 
+import AudioPlayer from '@/components/chat/AudioPlayer.vue'
 import { useSettingsStore } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
@@ -29,6 +30,7 @@ onMounted(() => {
   />
 
   <Toaster position="top-center" :duration="2000" />
+  <AudioPlayer />
   <RouterView />
 </template>
 

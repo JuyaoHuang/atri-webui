@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useTTSStore } from '@/stores/tts'
 import { useUserStore } from '@/stores/user'
 import type { Message } from '@/types/message'
 import { resolveAvatarUrl } from '@/utils/avatar'
@@ -12,6 +14,8 @@ interface Props {
 
 const props = defineProps<Props>()
 const userStore = useUserStore()
+const ttsStore = useTTSStore()
+const audioPlayer = useAudioPlayer()
 const isStage = computed(() => props.variant === 'stage')
 
 const formatTime = (timestamp: string) => {
@@ -34,6 +38,14 @@ const avatarSrc = computed(() => {
 
   return resolveAvatarUrl(props.message.avatar)
 })
+
+const canPlaySpeech = computed(() => {
+  return props.message.role === 'ai' && !isStage.value && ttsStore.moduleEnabled && props.message.content.trim().length > 0
+})
+
+function playMessageSpeech() {
+  void audioPlayer.enqueueText(props.message.content, { source: 'manual' })
+}
 </script>
 
 <template>
@@ -75,7 +87,19 @@ const avatarSrc = computed(() => {
     <div class="message-content">
       <div class="message-header">
         <span class="message-role">{{ displayName }}</span>
-        <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+        <div class="message-tools">
+          <button
+            v-if="canPlaySpeech"
+            class="message-speech-button"
+            type="button"
+            title="Play speech"
+            :disabled="audioPlayer.isBusy.value"
+            @click="playMessageSpeech"
+          >
+            <div :class="audioPlayer.isBusy.value ? 'i-solar:refresh-bold-duotone animate-spin' : 'i-solar:volume-loud-bold-duotone'" />
+          </button>
+          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+        </div>
       </div>
       <div class="message-text">{{ message.content }}</div>
     </div>
@@ -175,6 +199,37 @@ const avatarSrc = computed(() => {
 .message-time {
   font-size: 0.75rem;
   color: rgb(0 0 0 / 0.42);
+}
+
+.message-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.message-speech-button {
+  display: inline-flex;
+  width: 1.6rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(0 129 179 / 0.14);
+  border-radius: 0.55rem;
+  color: #0071a0;
+  background: rgb(255 255 255 / 0.62);
+  font-size: 0.9rem;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.message-speech-button:hover:not(:disabled) {
+  background: rgb(152 236 255 / 0.28);
+  transform: translateY(-1px);
+}
+
+.message-speech-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .message-text {
@@ -290,6 +345,12 @@ const avatarSrc = computed(() => {
 
 .dark .message-time {
   color: rgb(255 255 255 / 0.42);
+}
+
+.dark .message-speech-button {
+  border-color: rgb(152 236 255 / 0.18);
+  color: #c5fcff;
+  background: rgb(0 71 102 / 0.44);
 }
 
 .dark .stage-message .stage-corner-avatar img,

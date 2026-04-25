@@ -1,8 +1,10 @@
 import { computed } from 'vue'
+import { useAudioPlayer } from '@/composables/useAudioPlayer'
 import { useWebSocketStore } from '@/stores/websocket'
 import { useChatStore } from '@/stores/chat'
 import { useCharactersStore } from '@/stores/characters'
 import { useLive2dStore } from '@/stores/live2d'
+import { useTTSStore } from '@/stores/tts'
 import { extractLive2dExpression } from '@/utils/live2dExpression'
 import { WebSocketManager } from '@/utils/websocket'
 
@@ -11,10 +13,21 @@ export function useWebSocket() {
   const chatStore = useChatStore()
   const charactersStore = useCharactersStore()
   const live2dStore = useLive2dStore()
+  const ttsStore = useTTSStore()
+  const audioPlayer = useAudioPlayer()
+
+  const enqueueAutoSpeech = async (text: string) => {
+    await ttsStore.ensureLoaded()
+    if (!ttsStore.moduleEnabled || !ttsStore.autoPlayEnabled || !text.trim()) {
+      return
+    }
+    await audioPlayer.enqueueText(text, { source: 'auto' })
+  }
 
   const connect = () => {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8430/ws'
     const wsManager = new WebSocketManager(wsUrl)
+    void ttsStore.ensureLoaded()
 
     // 监听连接状态
     wsManager.on('connected', () => {
@@ -58,6 +71,7 @@ export function useWebSocket() {
       }
 
       chatStore.completeStreaming(parsed.content || '', characterName, characterAvatar)
+      void enqueueAutoSpeech(parsed.content || '')
 
       if (completeData.chat_id) {
         chatStore.consumePendingDeferredTitle(completeData.chat_id)
