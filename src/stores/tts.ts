@@ -16,32 +16,26 @@ const DEFAULT_CONFIG: TTSConfig = {
   show_player_on_home: false,
   volume: 1,
   edge_tts: {
-    rate: '+0%',
-    pitch: '+0Hz',
-    volume: '+0%',
-    format: 'mp3'
+    rate: '+0%'
   },
-  gpt_sovits_tts: {
-    api_url: 'http://127.0.0.1:9880/tts',
-    timeout_seconds: 120
-  },
+  gpt_sovits_tts: {},
   siliconflow_tts: {
     default_voice: 'FunAudioLLM/CosyVoice2-0.5B:claire',
-    sample_rate: 32000,
+    stream: false
+  },
+  cosyvoice3_tts: {
+    sft_dropdown: '',
     stream: false,
-    speed: 1,
-    gain: 0,
-    timeout_seconds: 120
+    speed: 1
   }
 }
 
 let loadPromise: Promise<void> | null = null
 const PROVIDER_WRITE_ALLOWLISTS: Record<string, Set<string>> = {
-  gpt_sovits_tts: new Set(['api_url', 'timeout_seconds'])
-}
-const PROVIDER_WRITE_BLOCKLISTS: Record<string, Set<string>> = {
-  edge_tts: new Set(['voice']),
-  siliconflow_tts: new Set(['api_url', 'default_model', 'api_key', 'response_format'])
+  edge_tts: new Set(['rate']),
+  gpt_sovits_tts: new Set(),
+  siliconflow_tts: new Set(['default_voice', 'stream']),
+  cosyvoice3_tts: new Set(['sft_dropdown', 'stream', 'speed'])
 }
 
 export interface TTSState {
@@ -74,6 +68,10 @@ function normalizeConfig(config?: Partial<TTSConfig>): TTSConfig {
     siliconflow_tts: {
       ...DEFAULT_CONFIG.siliconflow_tts,
       ...(config?.siliconflow_tts || {})
+    },
+    cosyvoice3_tts: {
+      ...DEFAULT_CONFIG.cosyvoice3_tts,
+      ...(config?.cosyvoice3_tts || {})
     }
   }
 }
@@ -90,13 +88,7 @@ function sanitizeProviderPatch(provider: string, patch: TTSProviderConfig): TTSP
     ) as TTSProviderConfig
   }
 
-  const blocklist = PROVIDER_WRITE_BLOCKLISTS[provider]
-  if (!blocklist) {
-    return patch
-  }
-  return Object.fromEntries(
-    Object.entries(patch).filter(([key]) => !blocklist.has(key))
-  ) as TTSProviderConfig
+  return patch
 }
 
 export const useTTSStore = defineStore('tts', {

@@ -116,6 +116,7 @@ export interface TTSConfig {
   edge_tts?: TTSProviderConfig
   gpt_sovits_tts?: TTSProviderConfig
   siliconflow_tts?: TTSProviderConfig
+  cosyvoice3_tts?: TTSProviderConfig
   [key: string]: string | number | boolean | TTSProviderConfig | undefined
 }
 

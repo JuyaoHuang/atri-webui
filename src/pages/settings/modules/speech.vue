@@ -57,17 +57,26 @@ const outputVolume = computed({
 
 const activeProvider = computed(() => ttsStore.activeProvider)
 const activeConfig = computed(() => ttsStore.activeProviderConfig)
+const voiceModelProviders = new Set(['siliconflow_tts', 'cosyvoice3_tts'])
 
 const selectedVoice = computed({
   get: () => {
     if (activeProviderName.value === 'siliconflow_tts') {
       return configString('default_voice', 'FunAudioLLM/CosyVoice2-0.5B:claire')
     }
-    return configString('voice', 'zh-CN-XiaoxiaoNeural')
+    if (activeProviderName.value === 'cosyvoice3_tts') {
+      return configString('sft_dropdown')
+    }
+    return ''
   },
   set: (value: string) => {
-    const key = activeProviderName.value === 'siliconflow_tts' ? 'default_voice' : 'voice'
-    void updateActiveProviderConfig({ [key]: value })
+    if (activeProviderName.value === 'siliconflow_tts') {
+      void updateActiveProviderConfig({ default_voice: value })
+      return
+    }
+    if (activeProviderName.value === 'cosyvoice3_tts') {
+      void updateActiveProviderConfig({ sft_dropdown: value })
+    }
   }
 })
 
@@ -84,7 +93,7 @@ const voiceOptions = computed(() => {
 
   return [
     {
-      label: selectedVoice.value,
+      label: selectedVoice.value || 'Configured voice',
       value: selectedVoice.value,
       description: 'Configured voice'
     }
@@ -134,10 +143,11 @@ async function testSynthesis() {
   }
 
   try {
-    await audioPlayer.enqueueText(testText.value, {
-      source: 'test',
-      voiceId: selectedVoice.value
-    })
+    const options: { source: 'test', voiceId?: string } = { source: 'test' }
+    if (voiceModelProviders.has(activeProviderName.value) && selectedVoice.value) {
+      options.voiceId = selectedVoice.value
+    }
+    await audioPlayer.enqueueText(testText.value, options)
   } catch (error) {
     testError.value = error instanceof Error ? error.message : String(error)
   }
@@ -266,24 +276,37 @@ onMounted(async () => {
               @change="event => updateTextConfig('rate', event)"
             >
           </div>
-          <div class="grid gap-2">
-            <label class="text-sm font-medium">Pitch</label>
-            <input
-              class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-900"
-              :value="configString('pitch', '+0Hz')"
-              placeholder="+0Hz"
-              @change="event => updateTextConfig('pitch', event)"
-            >
-          </div>
         </div>
 
         <div v-else-if="activeProviderName === 'siliconflow_tts'" flex="~ col gap-4">
           <FieldComboboxSelect
             v-model="selectedVoice"
-            label="Voice"
+            label="Voice model"
             description="SiliconFlow voice id."
             :options="voiceOptions"
             layout="vertical"
+          />
+          <FieldCheckbox
+            :model-value="configBoolean('stream', false)"
+            label="Request streaming mode"
+            description="The backend still returns a complete audio response."
+            @update:model-value="value => updateActiveProviderConfig({ stream: value })"
+          />
+        </div>
+
+        <div v-else-if="activeProviderName === 'cosyvoice3_tts'" flex="~ col gap-4">
+          <FieldComboboxSelect
+            v-model="selectedVoice"
+            label="Voice model"
+            description="CosyVoice SFT voice."
+            :options="voiceOptions"
+            layout="vertical"
+          />
+          <FieldCheckbox
+            :model-value="configBoolean('stream', false)"
+            label="Request streaming mode"
+            description="The backend still returns a complete audio response."
+            @update:model-value="value => updateActiveProviderConfig({ stream: value })"
           />
           <FieldRange
             :model-value="configNumber('speed', 1)"
@@ -294,12 +317,6 @@ onMounted(async () => {
             :step="0.05"
             :format-value="value => `${value.toFixed(2)}x`"
             @update:model-value="value => updateActiveProviderConfig({ speed: value })"
-          />
-          <FieldCheckbox
-            :model-value="configBoolean('stream', false)"
-            label="Request streaming mode"
-            description="The backend still returns a complete audio response."
-            @update:model-value="value => updateActiveProviderConfig({ stream: value })"
           />
         </div>
       </div>
