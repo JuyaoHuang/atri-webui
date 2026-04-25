@@ -104,6 +104,67 @@ export interface ASRTranscriptionResponse {
   text: string
 }
 
+// TTS related
+export type TTSProviderConfig = Record<string, string | number | boolean | null | undefined>
+
+export interface TTSConfig {
+  tts_model: string
+  enabled: boolean
+  auto_play: boolean
+  show_player_on_home: boolean
+  volume: number
+  edge_tts?: TTSProviderConfig
+  gpt_sovits_tts?: TTSProviderConfig
+  siliconflow_tts?: TTSProviderConfig
+  cosyvoice3_tts?: TTSProviderConfig
+  [key: string]: string | number | boolean | TTSProviderConfig | undefined
+}
+
+export interface TTSProviderStatus {
+  name: string
+  display_name: string
+  provider_type: string
+  description: string
+  active: boolean
+  available: boolean
+  reason?: string | null
+  supports_streaming: boolean
+  media_type: string
+  config: TTSProviderConfig
+}
+
+export interface TTSConfigResponse {
+  config: TTSConfig
+  providers: TTSProviderStatus[]
+}
+
+export interface TTSHealthResponse {
+  active_provider: string
+  active_available: boolean
+  providers: TTSProviderStatus[]
+}
+
+export interface TTSVoiceInfo {
+  id: string
+  name: string
+  language?: string | null
+  gender?: string | null
+  description?: string | null
+  preview_url?: string | null
+}
+
+export interface TTSVoicesResponse {
+  provider: string
+  voices: TTSVoiceInfo[]
+}
+
+export interface TTSSynthesisRequest {
+  text: string
+  provider?: string
+  voice_id?: string
+  options?: Record<string, string | number | boolean | null | undefined>
+}
+
 export interface ChatListParams {
   character_id?: string
   user_id?: string

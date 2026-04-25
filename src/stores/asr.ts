@@ -43,6 +43,13 @@ const DEFAULT_CONFIG: ASRConfig = {
   }
 }
 
+const PROVIDER_WRITE_ALLOWLISTS: Record<string, Set<string>> = {
+  web_speech_api: new Set(['language', 'continuous', 'interim_results', 'max_alternatives']),
+  faster_whisper: new Set(['language']),
+  whisper_cpp: new Set(),
+  openai_whisper: new Set()
+}
+
 export interface ASRState {
   enabled: boolean
   config: ASRConfig
@@ -71,6 +78,17 @@ function normalizeConfig(config?: Partial<ASRConfig>): ASRConfig {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function sanitizeProviderPatch(provider: string, patch: ASRProviderConfig): ASRProviderConfig {
+  const allowlist = PROVIDER_WRITE_ALLOWLISTS[provider]
+  if (allowlist) {
+    return Object.fromEntries(
+      Object.entries(patch).filter(([key]) => allowlist.has(key))
+    ) as ASRProviderConfig
+  }
+
+  return patch
 }
 
 export const useASRStore = defineStore('asr', {
@@ -168,15 +186,13 @@ export const useASRStore = defineStore('asr', {
     },
 
     async updateProviderConfig(provider: string, patch: ASRProviderConfig) {
-      const current = this.config[provider]
-      const currentConfig = current && typeof current === 'object' && !Array.isArray(current)
-        ? current as ASRProviderConfig
-        : {}
+      const sanitizedPatch = sanitizeProviderPatch(provider, patch)
+      if (Object.keys(sanitizedPatch).length === 0) {
+        return
+      }
+
       await this.savePatch({
-        [provider]: {
-          ...currentConfig,
-          ...patch
-        }
+        [provider]: sanitizedPatch
       } as Partial<ASRConfig>)
     },
 

@@ -5,6 +5,7 @@ import IconStatusItem from '@/components/menu/IconStatusItem.vue'
 import RippleGrid from '@/components/ui/RippleGrid.vue'
 import { useRippleGridState } from '@/composables/useRippleGridState'
 import { useASRStore } from '@/stores/asr'
+import { useTTSStore } from '@/stores/tts'
 
 interface ModuleItem {
   id: string
@@ -18,6 +19,7 @@ interface ModuleItem {
 }
 
 const asrStore = useASRStore()
+const ttsStore = useTTSStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 
 const modulesList = computed<ModuleItem[]>(() => [
@@ -35,7 +37,7 @@ const modulesList = computed<ModuleItem[]>(() => [
     description: '设置语音合成模型、音色与输出行为。',
     icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
-    configured: false,
+    configured: ttsStore.moduleEnabled && ttsStore.configured,
   },
   {
     id: 'hearing',
@@ -58,6 +60,9 @@ const modulesList = computed<ModuleItem[]>(() => [
 onMounted(() => {
   if (!asrStore.providers.length && !asrStore.loading) {
     void asrStore.load()
+  }
+  if (!ttsStore.providers.length && !ttsStore.loading) {
+    void ttsStore.load()
   }
 })
 </script>

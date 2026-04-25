@@ -77,14 +77,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'modules/speech',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/modules/speech.vue'),
     meta: createSettingsMeta({
       order: 32,
       title: 'TTS 配置',
       description: '设置语音合成模型、音色与输出行为。',
       icon: 'i-solar:user-speak-rounded-bold-duotone',
       phase: 'Phase 10',
-      status: 'developing',
+      status: 'active',
       settingsEntry: false,
     }),
   },

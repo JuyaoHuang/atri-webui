@@ -114,7 +114,7 @@ const speakingIndicatorClass = computed(() => audioLevel.isSpeech.value
     : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
 )
 
-const languageOptions = [
+const browserLanguageOptions = [
   { label: 'Chinese (Simplified)', value: 'zh-CN' },
   { label: 'Chinese (Traditional)', value: 'zh-TW' },
   { label: 'English (US)', value: 'en-US' },
@@ -126,28 +126,19 @@ const languageOptions = [
   { label: 'Spanish', value: 'es-ES' },
 ]
 
-const modelOptions = computed(() => {
-  if (activeProviderName.value === 'faster_whisper') {
-    return [
-      { label: 'distil-medium.en', value: 'distil-medium.en' },
-      { label: 'large-v3-turbo', value: 'large-v3-turbo' },
-      { label: 'distil-large-v3', value: 'distil-large-v3' },
-    ]
-  }
-  if (activeProviderName.value === 'whisper_cpp') {
-    return [
-      { label: 'tiny', value: 'tiny' },
-      { label: 'base', value: 'base' },
-      { label: 'small', value: 'small' },
-      { label: 'medium', value: 'medium' },
-    ]
-  }
-  return [
-    { label: 'whisper-1', value: 'whisper-1' },
-    { label: 'gpt-4o-mini-transcribe', value: 'gpt-4o-mini-transcribe' },
-    { label: 'gpt-4o-transcribe', value: 'gpt-4o-transcribe' },
-  ]
-})
+const backendLanguageOptions = [
+  { label: '置空项', value: '' },
+  { label: '中文', value: 'zh' },
+  { label: '英语', value: 'en' },
+  { label: '日语', value: 'ja' },
+  { label: '韩语', value: 'ko' },
+  { label: '俄语', value: 'ru' },
+  { label: '法语', value: 'fr' },
+  { label: '德语', value: 'de' },
+  { label: '西班牙语', value: 'es' },
+  { label: '意大利语', value: 'it' },
+  { label: '葡萄牙语', value: 'pt' },
+]
 
 function configString(key: string, fallback = '') {
   const value = activeConfig.value[key]
@@ -478,7 +469,7 @@ onUnmounted(() => {
           :model-value="configString('language', 'zh-CN')"
           label="Recognition Language"
           description="Select the browser speech recognition language."
-          :options="languageOptions"
+          :options="browserLanguageOptions"
           layout="vertical"
           @update:model-value="value => updateActiveProviderConfig({ language: String(value || 'zh-CN') })"
         />
@@ -497,71 +488,45 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="activeProviderName === 'faster_whisper'" flex="~ col gap-4">
-        <FieldComboboxSelect
-          :model-value="configString('model_path', 'distil-medium.en')"
-          label="Model"
-          description="Faster Whisper model path or Hub id."
-          :options="modelOptions"
-          layout="vertical"
-          @update:model-value="value => updateActiveProviderConfig({ model_path: String(value || '') })"
-        />
-        <FieldComboboxSelect
-          :model-value="configString('language', 'en')"
-          label="Language"
-          description="OLV-compatible language code; empty means auto-detect."
-          :options="[
-            { label: 'English', value: 'en' },
-            { label: 'Chinese', value: 'zh' },
-            { label: 'Auto', value: '' },
-          ]"
-          layout="vertical"
-          @update:model-value="value => updateActiveProviderConfig({ language: String(value || '') })"
-        />
         <div class="grid gap-2">
-          <label class="text-sm font-medium">Download root</label>
+          <label class="text-sm font-medium">Model</label>
           <input
-            class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-900"
-            :value="configString('download_root', 'models/whisper')"
-            @change="event => updateActiveProviderConfig({ download_root: (event.target as HTMLInputElement).value })"
+            class="cursor-not-allowed rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-500 outline-none dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400"
+            :value="configString('model_path', 'distil-medium.en')"
+            readonly
+            disabled
           >
         </div>
+        <FieldComboboxSelect
+          :model-value="configString('language', '')"
+          label="Language"
+          description="OLV-compatible language code; empty means auto-detect."
+          :options="backendLanguageOptions"
+          layout="vertical"
+          @update:model-value="value => updateActiveProviderConfig({ language: String(value ?? '') })"
+        />
       </div>
 
       <div v-else-if="activeProviderName === 'whisper_cpp'" flex="~ col gap-4">
-        <FieldComboboxSelect
-          :model-value="configString('model_name', 'small')"
-          label="Model"
-          description="pywhispercpp model name."
-          :options="modelOptions"
-          layout="vertical"
-          @update:model-value="value => updateActiveProviderConfig({ model_name: String(value || '') })"
-        />
         <div class="grid gap-2">
-          <label class="text-sm font-medium">Model directory</label>
+          <label class="text-sm font-medium">Model</label>
           <input
-            class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-900"
-            :value="configString('model_dir', 'models/whisper')"
-            @change="event => updateActiveProviderConfig({ model_dir: (event.target as HTMLInputElement).value })"
+            class="cursor-not-allowed rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-500 outline-none dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400"
+            :value="configString('model_name', 'small')"
+            readonly
+            disabled
           >
         </div>
       </div>
 
       <div v-else-if="activeProviderName === 'openai_whisper'" flex="~ col gap-4">
-        <FieldComboboxSelect
-          :model-value="configString('model', 'whisper-1')"
-          label="Model"
-          description="OpenAI-compatible transcription model."
-          :options="modelOptions"
-          layout="vertical"
-          @update:model-value="value => updateActiveProviderConfig({ model: String(value || '') })"
-        />
         <div class="grid gap-2">
-          <label class="text-sm font-medium">Base URL</label>
+          <label class="text-sm font-medium">Model</label>
           <input
-            class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-900"
-            :value="configString('base_url', '')"
-            placeholder="Optional"
-            @change="event => updateActiveProviderConfig({ base_url: (event.target as HTMLInputElement).value })"
+            class="cursor-not-allowed rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-500 outline-none dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400"
+            :value="configString('model', 'whisper-1')"
+            readonly
+            disabled
           >
         </div>
       </div>
