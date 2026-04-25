@@ -9,6 +9,38 @@ import { useLive2dStore } from '@/stores/live2d'
 import { useWebSocketStore } from '@/stores/websocket'
 import { extractLive2dExpression } from '@/utils/live2dExpression'
 
+interface ClientDatetimeContext {
+  iso: string
+  local: string
+  time_zone?: string
+  utc_offset: string
+}
+
+interface ClientContext {
+  datetime: ClientDatetimeContext
+}
+
+function formatUtcOffset(date: Date): string {
+  const offsetMinutes = -date.getTimezoneOffset()
+  const sign = offsetMinutes >= 0 ? '+' : '-'
+  const absoluteMinutes = Math.abs(offsetMinutes)
+  const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, '0')
+  const minutes = String(absoluteMinutes % 60).padStart(2, '0')
+
+  return `UTC${sign}${hours}:${minutes}`
+}
+
+function buildClientContext(date: Date): ClientContext {
+  return {
+    datetime: {
+      iso: date.toISOString(),
+      local: date.toLocaleString(),
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      utc_offset: formatUtcOffset(date)
+    }
+  }
+}
+
 export function useChat() {
   const chatStore = useChatStore()
   const chatsStore = useChatsStore()
@@ -20,6 +52,9 @@ export function useChat() {
     if (!text.trim()) return
 
     const messageText = text.trim()
+    const sentAt = new Date()
+    const sentAtIso = sentAt.toISOString()
+    const clientContext = buildClientContext(sentAt)
     const currentCharacterId = charactersStore.activeCharacterId || chatStore.currentCharacterId
     let currentChatId = chatStore.currentChatId
     let isDraftChat = false
@@ -41,7 +76,7 @@ export function useChat() {
         chat_id: currentChatId,
         role: 'human',
         content: messageText,
-        timestamp: new Date().toISOString()
+        timestamp: sentAtIso
       })
 
       try {
@@ -71,7 +106,7 @@ export function useChat() {
         chat_id: currentChatId,
         role: 'human',
         content: messageText,
-        timestamp: new Date().toISOString()
+        timestamp: sentAtIso
       })
     }
 
@@ -81,7 +116,8 @@ export function useChat() {
       data: {
         text: messageText,
         chat_id: currentChatId,
-        character_id: currentCharacterId
+        character_id: currentCharacterId,
+        client_context: clientContext
       }
     })
 
