@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useChatStore } from '@/stores/chat'
 import { useCharactersStore } from '@/stores/characters'
@@ -9,6 +9,10 @@ const chatsStore = useChatsStore()
 const charactersStore = useCharactersStore()
 const chatStore = useChatStore()
 let fetchToken = 0
+const DELETE_CONFIRM_SKIP_KEY = 'ui/chat-history/delete-confirm-skip-until'
+const DELETE_CONFIRM_SKIP_MS = 30 * 60 * 1000
+const deleteConfirmChatId = ref<string | null>(null)
+const deleteSkipConfirm = ref(false)
 
 watch(
   () => charactersStore.activeCharacterId,
@@ -44,6 +48,14 @@ const sortedChats = computed(() => {
   })
 })
 
+const deleteConfirmChat = computed(() => {
+  if (!deleteConfirmChatId.value) {
+    return null
+  }
+
+  return chatsStore.chatList.find(chat => chat.id === deleteConfirmChatId.value) || null
+})
+
 const handleCreateChat = async () => {
   const characterId = charactersStore.activeCharacterId
   if (!characterId) {
@@ -61,13 +73,34 @@ const handleSelectChat = (chatId: string) => {
   }
 }
 
-const handleDeleteChat = async (chatId: string, event: Event) => {
-  event.stopPropagation()
-  const characterId = charactersStore.activeCharacterId || chatStore.currentCharacterId
-
-  if (!confirm('确定要删除这个聊天吗？')) {
-    return
+function shouldSkipDeleteConfirm() {
+  const expiresAt = Number(window.localStorage.getItem(DELETE_CONFIRM_SKIP_KEY))
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+    return false
   }
+
+  if (Date.now() < expiresAt) {
+    return true
+  }
+
+  window.localStorage.removeItem(DELETE_CONFIRM_SKIP_KEY)
+  return false
+}
+
+function cacheDeleteConfirmSkip() {
+  window.localStorage.setItem(
+    DELETE_CONFIRM_SKIP_KEY,
+    String(Date.now() + DELETE_CONFIRM_SKIP_MS),
+  )
+}
+
+function closeDeleteConfirm() {
+  deleteConfirmChatId.value = null
+  deleteSkipConfirm.value = false
+}
+
+const deleteChatById = async (chatId: string) => {
+  const characterId = charactersStore.activeCharacterId || chatStore.currentCharacterId
 
   try {
     await chatsStore.deleteChat(chatId)
@@ -82,11 +115,38 @@ const handleDeleteChat = async (chatId: string, event: Event) => {
         chatStore.currentChatId = null
       }
     }
+    return true
   }
   catch (error) {
     console.error('删除聊天失败:', error)
     alert('删除聊天失败，请重试')
+    return false
   }
+}
+
+const handleDeleteChat = async (chatId: string, event: Event) => {
+  event.stopPropagation()
+
+  if (shouldSkipDeleteConfirm()) {
+    await deleteChatById(chatId)
+    return
+  }
+
+  deleteConfirmChatId.value = chatId
+  deleteSkipConfirm.value = false
+}
+
+const confirmDeleteChat = async () => {
+  if (!deleteConfirmChatId.value) {
+    return
+  }
+
+  const shouldCacheSkip = deleteSkipConfirm.value
+  const deleted = await deleteChatById(deleteConfirmChatId.value)
+  if (deleted && shouldCacheSkip) {
+    cacheDeleteConfirmSkip()
+  }
+  closeDeleteConfirm()
 }
 
 const formatDate = (dateString: string) => {
@@ -160,6 +220,31 @@ const formatDate = (dateString: string) => {
         </div>
       </div>
     </div>
+
+    <div
+      v-if="deleteConfirmChat"
+      class="delete-confirm-overlay"
+      @click.self="closeDeleteConfirm"
+    >
+      <div class="delete-confirm-panel">
+        <div class="delete-confirm-title">删除聊天历史</div>
+        <p class="delete-confirm-copy">
+          将删除「{{ deleteConfirmChat.title }}」的聊天记录。此操作会移除前端聊天列表中的标题和消息文件。
+        </p>
+        <label class="delete-confirm-option">
+          <input v-model="deleteSkipConfirm" type="checkbox">
+          <span>30 分钟内不再确认删除聊天历史</span>
+        </label>
+        <div class="delete-confirm-actions">
+          <button type="button" class="delete-confirm-cancel" @click="closeDeleteConfirm">
+            取消
+          </button>
+          <button type="button" class="delete-confirm-submit" @click="confirmDeleteChat">
+            删除
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -215,6 +300,92 @@ const formatDate = (dateString: string) => {
   color: #0081b3;
 }
 
+.delete-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 51 69 / 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.delete-confirm-panel {
+  width: min(22rem, 100%);
+  border: 1px solid rgb(152 236 255 / 0.48);
+  border-radius: 1rem;
+  background: rgb(240 252 255 / 0.94);
+  padding: 1rem;
+  box-shadow: 0 24px 48px rgb(0 81 115 / 0.18);
+  color: #0071a0;
+}
+
+.delete-confirm-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #006f98;
+}
+
+.delete-confirm-copy {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: rgb(0 113 160 / 0.82);
+}
+
+.delete-confirm-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  color: rgb(0 113 160 / 0.78);
+}
+
+.delete-confirm-option input {
+  width: 0.9rem;
+  height: 0.9rem;
+  accent-color: #0081b3;
+}
+
+.delete-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.delete-confirm-cancel,
+.delete-confirm-submit {
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.delete-confirm-cancel {
+  border: 1px solid rgb(152 236 255 / 0.55);
+  background: rgb(255 255 255 / 0.62);
+  color: #0071a0;
+}
+
+.delete-confirm-cancel:hover {
+  background: rgb(197 252 255 / 0.66);
+}
+
+.delete-confirm-submit {
+  border: 1px solid rgb(248 113 113 / 0.36);
+  background: rgb(254 226 226 / 0.9);
+  color: #b91c1c;
+}
+
+.delete-confirm-submit:hover {
+  background: rgb(254 202 202 / 0.95);
+}
+
 .dark .section-title {
   color: #c5fcff;
 }
@@ -260,5 +431,45 @@ const formatDate = (dateString: string) => {
 
 .dark .delete-button:hover {
   color: #f0fcff;
+}
+
+.dark .delete-confirm-overlay {
+  background: rgb(0 19 29 / 0.48);
+}
+
+.dark .delete-confirm-panel {
+  border-color: rgb(41 189 226 / 0.28);
+  background: rgb(0 51 69 / 0.94);
+  box-shadow: 0 24px 48px rgb(0 0 0 / 0.34);
+  color: #c5fcff;
+}
+
+.dark .delete-confirm-title {
+  color: #f0fcff;
+}
+
+.dark .delete-confirm-copy,
+.dark .delete-confirm-option {
+  color: rgb(197 252 255 / 0.78);
+}
+
+.dark .delete-confirm-cancel {
+  border-color: rgb(41 189 226 / 0.34);
+  background: rgb(0 71 102 / 0.72);
+  color: #c5fcff;
+}
+
+.dark .delete-confirm-cancel:hover {
+  background: rgb(0 91 128 / 0.86);
+}
+
+.dark .delete-confirm-submit {
+  border-color: rgb(248 113 113 / 0.28);
+  background: rgb(127 29 29 / 0.72);
+  color: #fecaca;
+}
+
+.dark .delete-confirm-submit:hover {
+  background: rgb(153 27 27 / 0.78);
 }
 </style>

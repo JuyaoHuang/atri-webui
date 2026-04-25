@@ -100,6 +100,8 @@ watch([messages, streamingText], () => {
 
 .stage-empty-state {
   margin-top: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   text-align: left;
 }
 

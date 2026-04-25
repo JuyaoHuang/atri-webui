@@ -75,14 +75,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'modules/hearing',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/modules/hearing.vue'),
     meta: createSettingsMeta({
       order: 5,
       title: 'ASR 配置',
       description: '调整语音识别链路、输入设备与转写策略。',
       icon: 'i-solar:microphone-3-bold-duotone',
       phase: 'Phase 9',
-      status: 'developing',
+      status: 'active',
     }),
   },
   {
