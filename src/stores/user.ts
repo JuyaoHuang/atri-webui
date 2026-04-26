@@ -1,27 +1,77 @@
 import { defineStore } from 'pinia'
 
+import { authApi } from '@/api/auth'
+import type { AuthUserResponse } from '@/api/types'
+import {
+  clearStoredAuthToken,
+  getStoredAuthToken,
+  getStoredSignedInAt,
+  setStoredAuthToken,
+  setStoredSignedInAt
+} from '@/utils/authToken'
+
 export interface UserSettings {
   nickname: string
   avatar: string
 }
 
-export interface UserState {
-  settings: UserSettings
+export interface AuthSessionState {
+  enabled: boolean
+  initialized: boolean
+  loading: boolean
+  token: string | null
+  signedInAt: string | null
+  user: AuthUserResponse | null
+  error: string | null
 }
 
-// ============================================
-// 用户配置 - 在这里修改你的昵称和头像
-// ============================================
-const DEFAULT_SETTINGS: UserSettings = {
-  nickname: 'juyao',           // 修改这里设置你的昵称
-  avatar: '1.jpg' // 修改这里设置你的头像文件名（需放在 public/avatars/ 目录下）
+export interface UserState {
+  settings: UserSettings
+  auth: AuthSessionState
 }
-// ============================================
+
+const DEFAULT_SETTINGS: UserSettings = {
+  nickname: 'juyao',
+  avatar: '1.jpg'
+}
+
+const DEFAULT_AUTH_USER: AuthUserResponse = {
+  username: 'default',
+  avatar_url: null,
+  name: null,
+  auth_enabled: false
+}
 
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
-    settings: loadSettings()
+    settings: loadSettings(),
+    auth: {
+      enabled: false,
+      initialized: false,
+      loading: false,
+      token: getStoredAuthToken(),
+      signedInAt: getStoredSignedInAt(),
+      user: null,
+      error: null
+    }
   }),
+
+  getters: {
+    authEnabled: state => state.auth.enabled,
+    isAuthenticated: state => !state.auth.enabled || Boolean(state.auth.user),
+    displayName: state => {
+      if (state.auth.enabled && state.auth.user) {
+        return state.auth.user.name || state.auth.user.username || state.settings.nickname
+      }
+      return state.settings.nickname
+    },
+    avatarUrl: state => {
+      if (state.auth.enabled && state.auth.user?.avatar_url) {
+        return state.auth.user.avatar_url
+      }
+      return `/avatars/${state.settings.avatar}`
+    }
+  },
 
   actions: {
     updateSettings(settings: Partial<UserSettings>) {
@@ -32,11 +82,142 @@ export const useUserStore = defineStore('user', {
     resetSettings() {
       this.settings = { ...DEFAULT_SETTINGS }
       saveSettings(this.settings)
+    },
+
+    async initializeAuth(force = false) {
+      if (this.auth.initialized && !force) {
+        return this.auth
+      }
+
+      this.auth.loading = true
+      this.auth.error = null
+      this.auth.token = getStoredAuthToken()
+      this.auth.signedInAt = getStoredSignedInAt()
+
+      try {
+        const status = await authApi.status()
+        this.auth.enabled = status.enabled
+
+        if (!status.enabled) {
+          this.auth.user = DEFAULT_AUTH_USER
+          return this.auth
+        }
+
+        if (!this.auth.token) {
+          this.auth.user = null
+          return this.auth
+        }
+
+        try {
+          await this.fetchCurrentUser()
+        } catch {
+          clearStoredAuthToken()
+          this.auth.token = null
+          this.auth.signedInAt = null
+          this.auth.user = null
+          this.auth.error = 'Login has expired. Please sign in again.'
+        }
+      } catch (error) {
+        this.auth.enabled = false
+        this.auth.user = DEFAULT_AUTH_USER
+        this.auth.error = getErrorMessage(error)
+      } finally {
+        this.auth.initialized = true
+        this.auth.loading = false
+      }
+
+      return this.auth
+    },
+
+    async fetchCurrentUser() {
+      const user = await authApi.me()
+      this.auth.user = user
+      this.auth.enabled = user.auth_enabled
+      return user
+    },
+
+    async startGitHubLogin() {
+      this.auth.loading = true
+      this.auth.error = null
+
+      try {
+        const state = createLoginState()
+        const response = await authApi.login(state)
+        this.auth.enabled = response.enabled
+
+        if (!response.enabled) {
+          this.auth.user = DEFAULT_AUTH_USER
+          return null
+        }
+
+        if (!response.authorization_url) {
+          throw new Error('GitHub authorization URL is unavailable')
+        }
+
+        window.location.assign(response.authorization_url)
+        return response.authorization_url
+      } catch (error) {
+        this.auth.error = getErrorMessage(error)
+        throw error
+      } finally {
+        this.auth.loading = false
+      }
+    },
+
+    async completeLogin(
+      token: string,
+      fallbackUser?: Pick<AuthUserResponse, 'username' | 'avatar_url'>
+    ) {
+      setStoredAuthToken(token)
+      const signedInAt = new Date().toISOString()
+      setStoredSignedInAt(signedInAt)
+      this.auth.token = token
+      this.auth.signedInAt = signedInAt
+      this.auth.enabled = true
+      this.auth.error = null
+
+      if (fallbackUser?.username) {
+        this.auth.user = {
+          username: fallbackUser.username,
+          avatar_url: fallbackUser.avatar_url ?? null,
+          name: null,
+          auth_enabled: true
+        }
+      }
+
+      try {
+        return await this.fetchCurrentUser()
+      } catch (error) {
+        clearStoredAuthToken()
+        this.auth.token = null
+        this.auth.signedInAt = null
+        this.auth.user = null
+        this.auth.error = getErrorMessage(error)
+        throw error
+      }
+    },
+
+    async logout() {
+      this.auth.loading = true
+      this.auth.error = null
+
+      try {
+        if (this.auth.enabled) {
+          await authApi.logout()
+        }
+      } catch (error) {
+        console.error('Failed to call logout endpoint:', error)
+      } finally {
+        clearStoredAuthToken()
+        this.auth.token = null
+        this.auth.signedInAt = null
+        this.auth.user = this.auth.enabled ? null : DEFAULT_AUTH_USER
+        this.auth.loading = false
+      }
     }
   }
 })
 
-// LocalStorage 持久化
 const STORAGE_KEY = 'atri_user_settings'
 
 function loadSettings(): UserSettings {
@@ -57,4 +238,15 @@ function saveSettings(settings: UserSettings) {
   } catch (error) {
     console.error('Failed to save user settings:', error)
   }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function createLoginState() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }

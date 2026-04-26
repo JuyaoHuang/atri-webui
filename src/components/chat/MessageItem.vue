@@ -25,7 +25,7 @@ const formatTime = (timestamp: string) => {
 
 const displayName = computed(() => {
   if (props.message.role === 'human') {
-    return userStore.settings.nickname
+    return userStore.displayName
   }
 
   return props.message.name || 'AI'
@@ -33,7 +33,7 @@ const displayName = computed(() => {
 
 const avatarSrc = computed(() => {
   if (props.message.role === 'human') {
-    return `/avatars/${userStore.settings.avatar}`
+    return userStore.avatarUrl
   }
 
   return resolveAvatarUrl(props.message.avatar)

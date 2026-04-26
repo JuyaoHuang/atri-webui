@@ -225,6 +225,26 @@ export interface DeleteChatRequest {
   chat_id: string
 }
 
+export interface AuthStatusResponse {
+  enabled: boolean
+}
+
+export interface AuthLoginResponse {
+  enabled: boolean
+  authorization_url: string | null
+}
+
+export interface AuthUserResponse {
+  username: string
+  avatar_url?: string | null
+  name?: string | null
+  auth_enabled: boolean
+}
+
+export interface AuthLogoutResponse {
+  success: boolean
+}
+
 // 健康检查
 export interface HealthResponse {
   status: string

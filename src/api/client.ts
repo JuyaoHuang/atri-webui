@@ -1,4 +1,6 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
+
+import { clearStoredAuthToken, getStoredAuthToken } from '@/utils/authToken'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8430',
@@ -8,36 +10,61 @@ const client = axios.create({
   }
 })
 
-// 响应拦截器：统一错误处理
+client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getStoredAuthToken()
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`)
+  }
+  return config
+})
+
+function redirectToLogin(reason = 'expired') {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  if (window.location.pathname === '/login' || window.location.pathname === '/auth/callback') {
+    return
+  }
+
+  window.location.assign(
+    `/login?redirect=${encodeURIComponent(currentPath)}&reason=${encodeURIComponent(reason)}`
+  )
+}
+
 client.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response) {
-      // 服务器返回错误
       const status = error.response.status
-      const message = (error.response.data as { detail?: string })?.detail || '请求失败'
+      const message = (error.response.data as { detail?: string })?.detail || 'Request failed'
 
       console.error(`API Error [${status}]:`, message)
 
       switch (status) {
         case 400:
-          console.error('请求错误:', message)
+          console.error('Bad request:', message)
+          break
+        case 401:
+          if (!error.config?.url?.startsWith('/api/auth')) {
+            clearStoredAuthToken()
+            redirectToLogin()
+          }
           break
         case 404:
-          console.error('资源不存在')
+          console.error('Resource not found')
           break
         case 500:
-          console.error('服务器错误，请稍后重试')
+          console.error('Server error, please retry later')
           break
         default:
           console.error(message)
       }
     } else if (error.request) {
-      // 请求发送但无响应
-      console.error('网络连接失败，请检查网络')
+      console.error('Network request failed')
     } else {
-      // 其他错误
-      console.error('请求失败，请重试')
+      console.error('Request failed')
     }
 
     return Promise.reject(error)
