@@ -126,12 +126,22 @@ function playMessageSpeech() {
   align-items: flex-start;
 }
 
-.message-item.ai-message {
+.message-item.ai-message:not(.stage-message) {
   flex-direction: row;
   justify-content: flex-start;
 }
 
-.message-item.human-message {
+.stage-message.ai-message {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+.message-item.human-message:not(.stage-message) {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.stage-message.human-message {
   flex-direction: row-reverse;
   justify-content: flex-start;
 }
@@ -166,14 +176,28 @@ function playMessageSpeech() {
   padding: 0.75rem;
 }
 
-.message-item.ai-message .message-content {
+.message-item.ai-message:not(.stage-message) .message-content {
   background: rgb(240 252 255 / 0.8);
   box-shadow: 0 1px 2px rgb(152 236 255 / 0.5);
   color: #0071a0;
   max-width: calc(100% - 3rem);
 }
 
-.message-item.human-message .message-content {
+.stage-message.ai-message .message-content {
+  background: rgb(240 252 255 / 0.8);
+  box-shadow: 0 1px 2px rgb(152 236 255 / 0.5);
+  color: #0071a0;
+  max-width: calc(100% - 3rem);
+}
+
+.message-item.human-message:not(.stage-message) .message-content {
+  background: rgb(245 245 245 / 0.8);
+  box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
+  color: rgb(38 38 38);
+  margin-left: auto;
+}
+
+.stage-message.human-message .message-content {
   background: rgb(245 245 245 / 0.8);
   box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
   color: rgb(38 38 38);
@@ -267,6 +291,8 @@ function playMessageSpeech() {
 }
 
 .stage-message.human-message {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
   align-items: flex-start;
   margin-right: 5rem;
   margin-left: 0rem;
@@ -302,9 +328,11 @@ function playMessageSpeech() {
 }
 
 .stage-message.human-message .message-content {
-  background: rgb(245 245 245 / 0.82);
+  background: rgb(245 245 245 / 0.8);
   box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
   color: rgb(38 38 38);
+  margin-left: auto;
+  margin-right: -5rem;
 }
 
 .stage-message .message-role {
@@ -327,13 +355,25 @@ function playMessageSpeech() {
   background: linear-gradient(135deg, #7f8ea3, #5f6b7d);
 }
 
-.dark .message-item.ai-message .message-content {
+.dark .message-item.ai-message:not(.stage-message) .message-content {
   background: rgb(0 51 69 / 0.8);
   box-shadow: none;
   color: #c5fcff;
 }
 
-.dark .message-item.human-message .message-content {
+.dark .stage-message.ai-message .message-content {
+  background: rgb(0 51 69 / 0.8);
+  box-shadow: none;
+  color: #c5fcff;
+}
+
+.dark .message-item.human-message:not(.stage-message) .message-content {
+  background: rgb(38 38 38 / 0.8);
+  box-shadow: none;
+  color: rgb(245 245 245);
+}
+
+.dark .stage-message.human-message .message-content {
   background: rgb(38 38 38 / 0.8);
   box-shadow: none;
   color: rgb(245 245 245);
