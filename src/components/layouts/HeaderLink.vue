@@ -10,7 +10,9 @@ import { RouterLink } from 'vue-router'
     <div
       class="header-link-icon"
     >
-      <div i-solar:settings-bold-duotone text-xl />
+      <div class="app-icon-wrap">
+        <img src="/icon/icon.svg" alt="ATRI" class="header-link-logo" />
+      </div>
     </div>
     <div translate-y="[2px]" font-quicksand font-semibold>
       <span>ATRI</span>
@@ -31,6 +33,21 @@ import { RouterLink } from 'vue-router'
   color: rgb(68 119 245);
   transition: all 0.3s ease-in-out;
 }
+
+.app-icon-wrap {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.header-link-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
 
 .dark .header-link-icon {
   border-color: rgb(245 245 245 / 0.08);
