@@ -436,4 +436,47 @@ function playMessageSpeech() {
     0 10px 20px rgb(0 0 0 / 0.22),
     0 0 0 1px rgb(41 189 226 / 0.22);
 }
+
+@media (max-width: 768px) {
+  .message-avatar,
+  .stage-message .stage-corner-avatar {
+    display: none;
+  }
+
+  .message-item {
+    gap: 0;
+  }
+
+  .message-item.ai-message:not(.stage-message) {
+    margin-right: 0;
+  }
+
+  .message-item.ai-message:not(.stage-message) .message-content,
+  .message-item.human-message:not(.stage-message) .message-content {
+    max-width: 88%;
+  }
+
+  .stage-message {
+    margin-bottom: 0.75rem;
+    padding-top: 0;
+  }
+
+  .stage-message.ai-message {
+    margin-left: 0;
+  }
+
+  .stage-message.human-message {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .stage-message.human-message .message-content {
+    margin-right: 0;
+  }
+
+  .stage-message.ai-message .message-content,
+  .stage-message.human-message .message-content {
+    max-width: 92%;
+  }
+}
 </style>

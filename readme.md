@@ -167,6 +167,5 @@ atri-webui/
 
 ## 相关文档
 
-- 后端 API 文档：`../docs/后端API接口文档.md`
 - 开发指南：`docs/DEVELOPMENT.md`
 - 用户配置：`docs/USER_CONFIG.md`
