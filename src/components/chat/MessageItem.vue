@@ -129,6 +129,7 @@ function playMessageSpeech() {
 .message-item.ai-message:not(.stage-message) {
   flex-direction: row;
   justify-content: flex-start;
+  margin-right: 30rem;
 }
 
 .stage-message.ai-message {
@@ -137,8 +138,8 @@ function playMessageSpeech() {
 }
 
 .message-item.human-message:not(.stage-message) {
-  flex-direction: row-reverse;
-  justify-content: flex-start;
+  flex-direction: row;
+  justify-content: flex-end;
 }
 
 .stage-message.human-message {
@@ -148,6 +149,27 @@ function playMessageSpeech() {
 
 .message-avatar {
   flex-shrink: 0;
+}
+
+.message-item.human-message:not(.stage-message) .message-avatar {
+  display: flex;
+  width: 2.2rem;
+  height: 2.2rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.message-item.human-message:not(.stage-message) .message-avatar img,
+.message-item.human-message:not(.stage-message) .message-avatar .fallback-avatar {
+  display: flex;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 2px solid rgb(255 255 255 / 0.9);
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow:
+    0 10px 20px rgb(0 129 179 / 0.12),
+    0 0 0 1px rgb(152 236 255 / 0.32);
 }
 
 .fallback-avatar {
@@ -167,6 +189,10 @@ function playMessageSpeech() {
 
 .user-fallback {
   background: #737373;
+}
+
+.message-item.human-message:not(.stage-message) .user-fallback {
+  background: linear-gradient(135deg, #7f8ea3, #5f6b7d);
 }
 
 .message-content {
@@ -194,7 +220,9 @@ function playMessageSpeech() {
   background: rgb(245 245 245 / 0.8);
   box-shadow: 0 1px 2px rgb(229 229 229 / 0.5);
   color: rgb(38 38 38);
-  margin-left: auto;
+  max-width: calc(100% - 3rem);
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .stage-message.human-message .message-content {
@@ -391,6 +419,14 @@ function playMessageSpeech() {
   border-color: rgb(152 236 255 / 0.18);
   color: #c5fcff;
   background: rgb(0 71 102 / 0.44);
+}
+
+.dark .message-item.human-message:not(.stage-message) .message-avatar img,
+.dark .message-item.human-message:not(.stage-message) .message-avatar .fallback-avatar {
+  border-color: rgb(0 51 69 / 0.92);
+  box-shadow:
+    0 10px 20px rgb(0 0 0 / 0.22),
+    0 0 0 1px rgb(41 189 226 / 0.22);
 }
 
 .dark .stage-message .stage-corner-avatar img,
