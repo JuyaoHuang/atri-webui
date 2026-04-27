@@ -1,20 +1,17 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
-import { clearStoredAuthToken, getStoredAuthToken } from '@/utils/authToken'
+import { clearStoredAuthState } from '@/utils/authToken'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8430',
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 })
 
 client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = getStoredAuthToken()
-  if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`)
-  }
   return config
 })
 
@@ -48,7 +45,7 @@ client.interceptors.response.use(
           break
         case 401:
           if (!error.config?.url?.startsWith('/api/auth')) {
-            clearStoredAuthToken()
+            clearStoredAuthState()
             redirectToLogin()
           }
           break

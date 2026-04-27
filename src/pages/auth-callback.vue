@@ -33,18 +33,14 @@ onMounted(async () => {
     return
   }
 
-  const token = firstQueryValue(route.query.token)
-  if (!token) {
+  if (firstQueryValue(route.query.success) !== '1') {
     state.value = 'error'
-    message.value = 'Missing authentication token.'
+    message.value = 'Missing authentication session.'
     return
   }
 
   try {
-    await userStore.completeLogin(token, {
-      username: firstQueryValue(route.query.username) || 'github-user',
-      avatar_url: firstQueryValue(route.query.avatar_url)
-    })
+    await userStore.completeLogin()
     await router.replace(consumeAuthRedirect('/'))
   } catch (error) {
     state.value = 'error'
