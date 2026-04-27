@@ -3,10 +3,8 @@ import { defineStore } from 'pinia'
 import { authApi } from '@/api/auth'
 import type { AuthUserResponse } from '@/api/types'
 import {
-  clearStoredAuthToken,
-  getStoredAuthToken,
+  clearStoredAuthState,
   getStoredSignedInAt,
-  setStoredAuthToken,
   setStoredSignedInAt
 } from '@/utils/authToken'
 
@@ -19,7 +17,6 @@ export interface AuthSessionState {
   enabled: boolean
   initialized: boolean
   loading: boolean
-  token: string | null
   signedInAt: string | null
   user: AuthUserResponse | null
   error: string | null
@@ -49,7 +46,6 @@ export const useUserStore = defineStore('user', {
       enabled: false,
       initialized: false,
       loading: false,
-      token: getStoredAuthToken(),
       signedInAt: getStoredSignedInAt(),
       user: null,
       error: null
@@ -91,7 +87,6 @@ export const useUserStore = defineStore('user', {
 
       this.auth.loading = true
       this.auth.error = null
-      this.auth.token = getStoredAuthToken()
       this.auth.signedInAt = getStoredSignedInAt()
 
       try {
@@ -103,19 +98,14 @@ export const useUserStore = defineStore('user', {
           return this.auth
         }
 
-        if (!this.auth.token) {
-          this.auth.user = null
-          return this.auth
-        }
-
         try {
           await this.fetchCurrentUser()
         } catch {
-          clearStoredAuthToken()
-          this.auth.token = null
+          const hadSession = Boolean(this.auth.signedInAt)
+          clearStoredAuthState()
           this.auth.signedInAt = null
           this.auth.user = null
-          this.auth.error = 'Login has expired. Please sign in again.'
+          this.auth.error = hadSession ? 'Login has expired. Please sign in again.' : null
         }
       } catch (error) {
         this.auth.enabled = false
@@ -164,32 +154,17 @@ export const useUserStore = defineStore('user', {
       }
     },
 
-    async completeLogin(
-      token: string,
-      fallbackUser?: Pick<AuthUserResponse, 'username' | 'avatar_url'>
-    ) {
-      setStoredAuthToken(token)
+    async completeLogin() {
       const signedInAt = new Date().toISOString()
       setStoredSignedInAt(signedInAt)
-      this.auth.token = token
       this.auth.signedInAt = signedInAt
       this.auth.enabled = true
       this.auth.error = null
 
-      if (fallbackUser?.username) {
-        this.auth.user = {
-          username: fallbackUser.username,
-          avatar_url: fallbackUser.avatar_url ?? null,
-          name: null,
-          auth_enabled: true
-        }
-      }
-
       try {
         return await this.fetchCurrentUser()
       } catch (error) {
-        clearStoredAuthToken()
-        this.auth.token = null
+        clearStoredAuthState()
         this.auth.signedInAt = null
         this.auth.user = null
         this.auth.error = getErrorMessage(error)
@@ -208,8 +183,7 @@ export const useUserStore = defineStore('user', {
       } catch (error) {
         console.error('Failed to call logout endpoint:', error)
       } finally {
-        clearStoredAuthToken()
-        this.auth.token = null
+        clearStoredAuthState()
         this.auth.signedInAt = null
         this.auth.user = this.auth.enabled ? null : DEFAULT_AUTH_USER
         this.auth.loading = false

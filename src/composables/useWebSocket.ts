@@ -5,7 +5,6 @@ import { useChatStore } from '@/stores/chat'
 import { useCharactersStore } from '@/stores/characters'
 import { useLive2dStore } from '@/stores/live2d'
 import { useTTSStore } from '@/stores/tts'
-import { useUserStore } from '@/stores/user'
 import { extractLive2dExpression } from '@/utils/live2dExpression'
 import { WebSocketManager } from '@/utils/websocket'
 
@@ -15,7 +14,6 @@ export function useWebSocket() {
   const charactersStore = useCharactersStore()
   const live2dStore = useLive2dStore()
   const ttsStore = useTTSStore()
-  const userStore = useUserStore()
   const audioPlayer = useAudioPlayer()
 
   const enqueueAutoSpeech = async (text: string) => {
@@ -27,10 +25,7 @@ export function useWebSocket() {
   }
 
   const connect = () => {
-    const wsUrl = withAuthToken(
-      import.meta.env.VITE_WS_URL || 'ws://localhost:8430/ws',
-      userStore.authEnabled ? userStore.auth.token : null
-    )
+    const wsUrl = normalizeWebSocketUrl(import.meta.env.VITE_WS_URL || 'ws://localhost:8430/ws')
     const wsManager = new WebSocketManager(wsUrl)
     void ttsStore.ensureLoaded()
 
@@ -109,17 +104,12 @@ export function useWebSocket() {
   }
 }
 
-function withAuthToken(url: string, token: string | null) {
-  if (!token) {
-    return url
-  }
-
+function normalizeWebSocketUrl(url: string) {
   const parsed = new URL(url, window.location.href)
   if (parsed.protocol === 'http:') {
     parsed.protocol = 'ws:'
   } else if (parsed.protocol === 'https:') {
     parsed.protocol = 'wss:'
   }
-  parsed.searchParams.set('token', token)
   return parsed.toString()
 }
