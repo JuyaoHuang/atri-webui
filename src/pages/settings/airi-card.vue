@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { toast } from 'vue-sonner'
 
+import { getApiErrorMessage } from '@/api/client'
 import CharacterForm from '@/components/character/CharacterForm.vue'
 import CharacterList from '@/components/character/CharacterList.vue'
 import { useCharactersStore } from '@/stores/characters'
@@ -180,7 +181,7 @@ const handleFormSubmit = async (payload: CharacterFormPayload, avatarFile: File 
     toast.success(isEditing ? '角色已更新' : '角色已创建')
   } catch (error) {
     console.error(error)
-    toast.error('保存角色失败，请检查名称是否重复或提示词是否为空')
+    toast.error(`保存角色失败：${getApiErrorMessage(error)}`)
   }
 }
 
