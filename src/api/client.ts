@@ -15,6 +15,43 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
+type ApiValidationDetail = {
+  loc?: Array<string | number>
+  msg?: string
+}
+
+type ApiErrorData = {
+  detail?: string | ApiValidationDetail[]
+}
+
+export function getApiErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiErrorData | undefined
+    const detail = data?.detail
+
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail
+    }
+
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0]
+      const fieldPath = Array.isArray(first.loc) ? first.loc.slice(1).join('.') : ''
+      const message = first.msg?.trim() || 'Request failed'
+      return fieldPath ? `${fieldPath}: ${message}` : message
+    }
+
+    if (error.message) {
+      return error.message
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
+  return '请求失败'
+}
+
 function redirectToLogin(reason = 'expired') {
   if (typeof window === 'undefined') {
     return
@@ -35,7 +72,7 @@ client.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response) {
       const status = error.response.status
-      const message = (error.response.data as { detail?: string })?.detail || 'Request failed'
+      const message = getApiErrorMessage(error)
 
       console.error(`API Error [${status}]:`, message)
 

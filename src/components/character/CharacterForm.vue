@@ -169,7 +169,6 @@ const handleSubmit = () => {
           <textarea
             v-model="description"
             rows="5"
-            maxlength="200"
             class="rounded-xl border border-neutral-200 bg-white/75 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#0081b3]/40 dark:border-neutral-700 dark:bg-[#031821]/88 dark:text-neutral-100"
             placeholder="简要描述角色定位、气质和适合的聊天氛围。"
           />
@@ -183,7 +182,6 @@ const handleSubmit = () => {
         <textarea
           v-model="greeting"
           rows="6"
-          maxlength="500"
           class="rounded-xl border border-neutral-200 bg-white/75 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#0081b3]/40 dark:border-neutral-700 dark:bg-[#031821]/88 dark:text-neutral-100"
           placeholder="第一次进入对话时，角色会怎样开口。"
         />
