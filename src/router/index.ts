@@ -155,14 +155,14 @@ const settingsChildren: RouteRecordRaw[] = [
   },
   {
     path: 'data',
-    component: () => import('@/pages/settings/placeholder.vue'),
+    component: () => import('@/pages/settings/data.vue'),
     meta: createSettingsMeta({
       order: 7,
       title: '数据管理',
       description: '查看缓存、资源文件和持久化数据状态。',
       icon: 'i-solar:database-bold-duotone',
-      phase: 'Future',
-      status: 'developing',
+      phase: 'Phase 9',
+      status: 'active',
     }),
   },
   {
