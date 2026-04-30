@@ -22,6 +22,7 @@ const {
 } = useDataCleanup()
 
 const selectedCharacterId = ref<string | null>(null)
+const selectedShortMemoryChatId = ref<string | null>(null)
 const pendingChatId = ref<string | null>(null)
 const pendingAction = ref<'short' | 'long' | null>(null)
 const chatDeleteConfirmId = ref<string | null>(null)
@@ -38,6 +39,11 @@ onMounted(async () => {
 })
 
 watch(selectedCharacterId, async (characterId) => {
+  selectedShortMemoryChatId.value = null
+  shortMemoryConfirm.value = false
+  longMemoryConfirm.value = false
+  chatDeleteConfirmId.value = null
+
   if (!characterId) {
     return
   }
@@ -53,6 +59,13 @@ const selectedCharacter = computed(() => {
 
 const chats = computed(() => chatsStore.chatList.filter(chat => chat.character_id === selectedCharacterId.value))
 
+const selectedShortMemoryChat = computed(() => {
+  if (!selectedShortMemoryChatId.value) {
+    return null
+  }
+  return chats.value.find(chat => chat.id === selectedShortMemoryChatId.value) || null
+})
+
 const chatDeleteCandidate = computed(() => {
   if (!chatDeleteConfirmId.value) {
     return null
@@ -61,6 +74,28 @@ const chatDeleteCandidate = computed(() => {
 })
 
 const chatCountLabel = computed(() => `${chats.value.length} 个标题`)
+
+const shortMemoryConfirmLabel = computed(() => {
+  if (!selectedShortMemoryChat.value) {
+    return '确认清理所选聊天标题的短期记忆'
+  }
+  return `确认清理「${selectedShortMemoryChat.value.title}」的短期记忆`
+})
+
+watch(chats, (nextChats) => {
+  if (!selectedCharacterId.value) {
+    selectedShortMemoryChatId.value = null
+    shortMemoryConfirm.value = false
+    return
+  }
+
+  if (selectedShortMemoryChatId.value && nextChats.some(chat => chat.id === selectedShortMemoryChatId.value)) {
+    return
+  }
+
+  selectedShortMemoryChatId.value = nextChats[0]?.id || null
+  shortMemoryConfirm.value = false
+}, { immediate: true })
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-CN', {
@@ -103,13 +138,14 @@ async function handleDeleteChat(chat: Chat) {
 
 async function handleClearShortTerm() {
   const characterId = selectedCharacterId.value
-  if (!characterId) {
+  const chatId = selectedShortMemoryChatId.value
+  if (!characterId || !chatId) {
     return
   }
 
   pendingAction.value = 'short'
   try {
-    const response = await clearShortTermMemory(characterId)
+    const response = await clearShortTermMemory(characterId, chatId)
     toast.success(response.message)
     shortMemoryConfirm.value = false
   } catch (error) {
@@ -144,7 +180,7 @@ async function handleClearLongTerm() {
   <div flex="~ col gap-4" font-normal pb-8>
     <Callout label="清理范围" theme="primary">
       <p class="text-sm leading-6">
-        数据操作只作用于当前登录用户和选中的角色。聊天历史按标题单独删除，短期记忆会立即热清理，长期记忆会提交给 mem0 异步处理。
+        数据操作只作用于当前登录用户和选中的角色。聊天历史与短期记忆按标题单独清理，长期记忆会提交给 mem0 异步处理。
       </p>
     </Callout>
 
@@ -257,7 +293,15 @@ async function handleClearLongTerm() {
                 v-for="chat in chats"
                 :key="chat.id"
                 class="chat-row"
-                :class="{ 'is-current': currentChatId === chat.id }"
+                :class="{
+                  'is-current': currentChatId === chat.id,
+                  'is-memory-selected': selectedShortMemoryChatId === chat.id
+                }"
+                role="button"
+                tabindex="0"
+                @click="selectedShortMemoryChatId = chat.id"
+                @keydown.enter.prevent="selectedShortMemoryChatId = chat.id"
+                @keydown.space.prevent="selectedShortMemoryChatId = chat.id"
               >
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
@@ -265,6 +309,7 @@ async function handleClearLongTerm() {
                       {{ chat.title }}
                     </h4>
                     <span v-if="currentChatId === chat.id" class="current-pill">打开中</span>
+                    <span v-if="selectedShortMemoryChatId === chat.id" class="memory-pill">短期记忆</span>
                   </div>
                   <p class="mt-1 text-xs text-[#0071a0]/58 dark:text-[#98ecff]/58">
                     {{ formatDate(chat.updated_at) }}
@@ -275,7 +320,7 @@ async function handleClearLongTerm() {
                   variant="danger"
                   :icon="trashIcon"
                   :loading="pendingChatId === chat.id"
-                  @click="chatDeleteConfirmId = chat.id"
+                  @click.stop="chatDeleteConfirmId = chat.id"
                 />
               </article>
             </div>
@@ -296,12 +341,31 @@ async function handleClearLongTerm() {
               </div>
 
               <p class="mb-4 text-sm leading-6 text-[#0071a0]/72 dark:text-[#c5fcff]/70">
-                清理后，返回首页的下一轮对话不会再带入旧的 recent messages、active blocks 或 meta blocks。
+                清理选中聊天标题的 recent messages、active blocks 和 meta blocks，不影响同角色下的其他标题。
               </p>
 
+              <div class="memory-target" :class="{ 'is-empty': !selectedShortMemoryChat }">
+                <div class="min-w-0">
+                  <div class="text-[0.68rem] font-semibold uppercase tracking-wide text-[#0071a0]/55 dark:text-[#98ecff]/58">
+                    目标聊天
+                  </div>
+                  <div class="mt-1 truncate text-sm font-medium text-[#0071a0] dark:text-[#f0fcff]">
+                    {{ selectedShortMemoryChat?.title || '没有可清理的聊天标题' }}
+                  </div>
+                  <div v-if="selectedShortMemoryChat" class="mt-1 text-xs text-[#0071a0]/58 dark:text-[#98ecff]/58">
+                    {{ formatDate(selectedShortMemoryChat.updated_at) }}
+                  </div>
+                </div>
+                <div
+                  v-if="selectedShortMemoryChat"
+                  i-solar:check-circle-bold-duotone
+                  class="size-5 shrink-0 text-amber-500/80"
+                />
+              </div>
+
               <label class="confirm-row">
-                <input v-model="shortMemoryConfirm" type="checkbox">
-                <span>确认清理该角色的短期记忆</span>
+                <input v-model="shortMemoryConfirm" type="checkbox" :disabled="!selectedShortMemoryChat">
+                <span>{{ shortMemoryConfirmLabel }}</span>
               </label>
 
               <Button
@@ -309,7 +373,7 @@ async function handleClearLongTerm() {
                 block
                 variant="caution"
                 :icon="broomIcon"
-                :disabled="!selectedCharacterId || !shortMemoryConfirm"
+                :disabled="!selectedCharacterId || !selectedShortMemoryChatId || !shortMemoryConfirm"
                 :loading="pendingAction === 'short'"
                 @click="handleClearShortTerm"
               >
@@ -483,7 +547,8 @@ async function handleClearLongTerm() {
 }
 
 .scope-pill,
-.current-pill {
+.current-pill,
+.memory-pill {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -496,9 +561,20 @@ async function handleClearLongTerm() {
 }
 
 .dark .scope-pill,
-.dark .current-pill {
+.dark .current-pill,
+.dark .memory-pill {
   background: rgb(152 236 255 / 0.12);
   color: #c5fcff;
+}
+
+.memory-pill {
+  background: rgb(245 158 11 / 0.14);
+  color: #b45309;
+}
+
+.dark .memory-pill {
+  background: rgb(245 158 11 / 0.16);
+  color: #fde68a;
 }
 
 .chat-row {
@@ -509,6 +585,16 @@ async function handleClearLongTerm() {
   border: 1px solid rgb(152 236 255 / 0.24);
   border-radius: 0.9rem;
   background: rgb(255 255 255 / 0.5);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.chat-row:hover,
+.chat-row:focus-visible {
+  border-color: rgb(0 129 179 / 0.3);
+  background: rgb(152 236 255 / 0.16);
+  outline: none;
+  transform: translateY(-1px);
 }
 
 .chat-row.is-current {
@@ -516,14 +602,57 @@ async function handleClearLongTerm() {
   background: rgb(152 236 255 / 0.2);
 }
 
+.chat-row.is-memory-selected {
+  border-color: rgb(245 158 11 / 0.45);
+  background: rgb(245 158 11 / 0.1);
+}
+
 .dark .chat-row {
   border-color: rgb(41 189 226 / 0.18);
   background: rgb(255 255 255 / 0.06);
 }
 
+.dark .chat-row:hover,
+.dark .chat-row:focus-visible {
+  border-color: rgb(152 236 255 / 0.25);
+  background: rgb(152 236 255 / 0.1);
+}
+
 .dark .chat-row.is-current {
   border-color: rgb(152 236 255 / 0.25);
   background: rgb(152 236 255 / 0.1);
+}
+
+.dark .chat-row.is-memory-selected {
+  border-color: rgb(245 158 11 / 0.36);
+  background: rgb(245 158 11 / 0.12);
+}
+
+.memory-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  padding: 0.8rem;
+  border: 1px solid rgb(245 158 11 / 0.32);
+  border-radius: 0.85rem;
+  background: rgb(245 158 11 / 0.08);
+}
+
+.memory-target.is-empty {
+  border-color: rgb(0 129 179 / 0.18);
+  background: rgb(255 255 255 / 0.34);
+}
+
+.dark .memory-target {
+  border-color: rgb(245 158 11 / 0.26);
+  background: rgb(245 158 11 / 0.1);
+}
+
+.dark .memory-target.is-empty {
+  border-color: rgb(152 236 255 / 0.14);
+  background: rgb(255 255 255 / 0.04);
 }
 
 .empty-state {

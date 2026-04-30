@@ -228,6 +228,7 @@ export interface DeleteChatRequest {
 export interface DataCleanupResponse {
   character_id: string
   user_id: string
+  chat_id?: string | null
   target: 'short_term_memory' | 'long_term_memory'
   status: 'cleared' | 'submitted'
   message: string

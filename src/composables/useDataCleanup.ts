@@ -25,8 +25,8 @@ export function useDataCleanup() {
     }
   }
 
-  async function clearShortTermMemory(characterId: string) {
-    return dataApi.clearShortTermMemory(characterId)
+  async function clearShortTermMemory(characterId: string, chatId: string) {
+    return dataApi.clearShortTermMemory(characterId, chatId)
   }
 
   async function clearLongTermMemory(characterId: string) {
