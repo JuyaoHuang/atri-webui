@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { useTTSStore } from '@/stores/tts'
+import { cleanAiReplyTextForTts } from '@/utils/ttsText'
 
 interface QueueItem {
   id: string
@@ -123,18 +124,27 @@ export function useAudioPlayer() {
       return
     }
 
+    const source = options.source || 'manual'
+    const synthesisText = source === 'test'
+      ? normalizedText
+      : cleanAiReplyTextForTts(normalizedText)
+
+    if (!synthesisText) {
+      return
+    }
+
     error.value = null
     await ttsStore.ensureLoaded()
 
     const blob = await ttsStore.synthesize({
-      text: normalizedText,
+      text: synthesisText,
       provider: ttsStore.config.tts_model,
       voice_id: options.voiceId
     })
     const item: QueueItem = {
       id: `tts_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       text: normalizedText,
-      source: options.source || 'manual',
+      source,
       url: URL.createObjectURL(blob)
     }
     queue.value.push(item)
